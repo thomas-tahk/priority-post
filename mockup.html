@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>priority-post — mockup</title>
+<style>
+  :root {
+    --bg: #fafaf8;
+    --surface: #ffffff;
+    --surface-2: #f4f3ee;
+    --border: #e7e5e0;
+    --border-strong: #d8d6d0;
+    --text: #1a1a1a;
+    --text-dim: #6b6963;
+    --text-faint: #a8a59c;
+    --accent: #1a1a1a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 1px 8px rgba(0,0,0,0.03);
+    --shadow-lg: 0 4px 14px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+    --constellation-bg: linear-gradient(180deg, #fafaf8 0%, #f4f3ee 100%);
+
+    --cat-work:         #2563eb;
+    --cat-personal:     #9333ea;
+    --cat-health:       #16a34a;
+    --cat-learning:     #ea580c;
+    --cat-errands:      #0891b2;
+    --cat-side_project: #db2777;
+    --cat-other:        #64748b;
+  }
+  [data-theme="dark"] {
+    --bg: #0f0f11;
+    --surface: #1a1a1d;
+    --surface-2: #16161a;
+    --border: #2a2a30;
+    --border-strong: #3a3a42;
+    --text: #f0efe9;
+    --text-dim: #a3a299;
+    --text-faint: #6b6963;
+    --accent: #f0efe9;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 1px 8px rgba(0,0,0,0.3);
+    --shadow-lg: 0 6px 18px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.3);
+    --constellation-bg: radial-gradient(ellipse at 50% 40%, #1c1c22 0%, #0f0f11 80%);
+
+    --cat-work:         #3b82f6;
+    --cat-personal:     #a855f7;
+    --cat-health:       #22c55e;
+    --cat-learning:     #f97316;
+    --cat-errands:      #06b6d4;
+    --cat-side_project: #ec4899;
+    --cat-other:        #94a3b8;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+    transition: background 0.18s, color 0.18s;
+  }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky; top: 0; z-index: 10;
+  }
+  h1 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+  h1 .dim { color: var(--text-faint); font-weight: 400; margin-left: 8px; font-size: 12px; }
+
+  .toolbar { display: flex; gap: 10px; align-items: center; }
+
+  .view-toggle {
+    display: inline-flex; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 8px; padding: 2px;
+  }
+  .view-toggle button {
+    background: transparent; border: none; padding: 5px 12px; border-radius: 6px;
+    font-size: 12px; cursor: pointer; color: var(--text-dim); font-family: inherit;
+  }
+  .view-toggle button.active {
+    background: var(--surface); color: var(--text); box-shadow: var(--shadow);
+  }
+
+  .btn {
+    background: var(--surface); color: var(--text); border: 1px solid var(--border);
+    padding: 6px 12px; border-radius: 8px; font-size: 12px;
+    cursor: pointer; font-family: inherit; font-weight: 500;
+  }
+  .btn:hover { box-shadow: var(--shadow); }
+  .btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .btn.danger { color: hsl(0, 60%, 50%); border-color: hsl(0, 50%, 80%); }
+  [data-theme="dark"] .btn.danger { color: hsl(0, 80%, 70%); border-color: hsl(0, 40%, 30%); }
+
+  main {
+    display: grid;
+    grid-template-columns: minmax(380px, 1fr) minmax(380px, 1fr);
+    height: calc(100vh - 65px);
+  }
+  main.view-list { grid-template-columns: 1fr; }
+  main.view-constellation { grid-template-columns: 1fr; }
+  main.view-list .constellation-pane,
+  main.view-constellation .list-pane { display: none; }
+
+  .list-pane { overflow-y: auto; padding: 22px 28px; border-right: 1px solid var(--border); }
+  main.view-list .list-pane { border-right: none; max-width: 720px; margin: 0 auto; }
+
+  .section-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-faint); margin: 0 0 10px 2px; font-weight: 600;
+  }
+
+  .add-bar {
+    display: flex; gap: 8px; align-items: center;
+    margin-bottom: 22px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px 6px 4px 14px;
+  }
+  .add-bar input {
+    flex: 1; border: none; outline: none; font-size: 14px; font-family: inherit;
+    background: transparent; padding: 9px 0; color: var(--text);
+  }
+  .add-bar input::placeholder { color: var(--text-faint); }
+  .add-bar .hint { color: var(--text-faint); font-size: 11px; padding-right: 8px; }
+
+  .task {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    position: relative;
+    transition: box-shadow 0.12s, opacity 0.2s;
+  }
+  .task:hover { box-shadow: var(--shadow); }
+  .task.top {
+    padding: 18px 20px; margin-bottom: 18px;
+    box-shadow: var(--shadow-lg);
+    border-color: var(--border-strong);
+  }
+  .task.top .title { font-size: 16px; font-weight: 600; }
+  .task.done { opacity: 0.4; }
+  .task.done .title { text-decoration: line-through; }
+  .task.triaging { opacity: 0.6; }
+  .task.triaging::after {
+    content: "triaging…"; position: absolute; top: 12px; right: 14px;
+    font-size: 10px; color: var(--text-faint); font-style: italic;
+  }
+
+  .task .title-row { display: flex; align-items: flex-start; gap: 10px; }
+  .task .checkbox {
+    width: 18px; height: 18px;
+    border: 1.5px solid var(--text-faint);
+    border-radius: 5px; flex-shrink: 0; margin-top: 2px; cursor: pointer;
+    transition: border-color 0.12s, background 0.12s;
+  }
+  .task .checkbox:hover { border-color: var(--text-dim); }
+  .task.done .checkbox { background: var(--text-dim); border-color: var(--text-dim); }
+  .task .title { font-size: 14px; font-weight: 500; flex: 1; }
+
+  .task .meta {
+    display: flex; flex-wrap: wrap; gap: 6px 8px;
+    margin-top: 8px; margin-left: 28px;
+    font-size: 12px; color: var(--text-dim); align-items: center;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 999px;
+    background: var(--bg); font-size: 11px; border: 1px solid var(--border);
+  }
+  .pill.cat { color: white; border: none; font-weight: 500; }
+  .pill.cat[data-cat="work"]         { background: var(--cat-work); }
+  .pill.cat[data-cat="personal"]     { background: var(--cat-personal); }
+  .pill.cat[data-cat="health"]       { background: var(--cat-health); }
+  .pill.cat[data-cat="learning"]     { background: var(--cat-learning); }
+  .pill.cat[data-cat="errands"]      { background: var(--cat-errands); }
+  .pill.cat[data-cat="side_project"] { background: var(--cat-side_project); }
+  .pill.cat[data-cat="other"]        { background: var(--cat-other); }
+
+  .pill.cat .chip-x {
+    background: rgba(255,255,255,0.22); border: none; color: white;
+    width: 14px; height: 14px; border-radius: 50%;
+    font-size: 12px; line-height: 1; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    margin-left: 4px; padding: 0; font-family: inherit;
+  }
+  .pill.cat .chip-x:hover { background: rgba(255,255,255,0.4); }
+  .pill.add-tag {
+    border: 1px dashed var(--border-strong);
+    background: transparent; color: var(--text-dim);
+    cursor: pointer; font-size: 11px;
+  }
+  .pill.add-tag:hover { background: var(--bg); color: var(--text); }
+  .tag-picker {
+    display: inline-flex; flex-wrap: wrap; gap: 4px;
+    padding: 5px 6px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    box-shadow: var(--shadow-lg);
+  }
+  .tag-picker .pill.cat {
+    cursor: pointer; border: none; font-family: inherit;
+    padding: 2px 10px;
+  }
+  .tag-picker .pill.cat:hover { filter: brightness(1.12); }
+
+  .sparkle { color: hsl(45, 95%, 55%); font-size: 10px; margin-left: 1px; opacity: 0.9; }
+  [data-theme="dark"] .sparkle { color: hsl(48, 95%, 65%); }
+
+  .constellation-pane {
+    overflow: hidden; padding: 22px 28px;
+    background: var(--constellation-bg);
+    position: relative;
+  }
+  .constellation-pane svg { width: 100%; height: calc(100% - 60px); display: block; }
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 6px 14px;
+    font-size: 11px; color: var(--text-dim);
+    padding-top: 12px; border-top: 1px solid var(--border);
+  }
+  .legend .item { display: inline-flex; align-items: center; gap: 5px; }
+  .legend .swatch { width: 10px; height: 10px; border-radius: 50%; }
+
+  .bubble {
+    cursor: pointer;
+    transition: transform 0.12s ease;
+    transform-origin: center;
+    transform-box: fill-box;
+  }
+  .bubble:hover { transform: scale(1.06); }
+  .bubble text {
+    fill: white; font-weight: 600; text-anchor: middle;
+    pointer-events: none; text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+  .bubble.top .top-ring { pointer-events: none; }
+
+  .panel {
+    position: fixed; top: 65px; right: -440px;
+    width: 420px; height: calc(100vh - 65px);
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+    transition: right 0.22s ease;
+    overflow-y: auto;
+    z-index: 20;
+    padding: 22px 24px 40px;
+  }
+  .panel.open { right: 0; }
+  .panel h2 { margin: 0 0 4px; font-size: 17px; font-weight: 600; }
+  .panel .close {
+    position: absolute; top: 12px; right: 14px;
+    border: none; background: transparent; font-size: 20px; cursor: pointer;
+    color: var(--text-faint); padding: 4px 10px; border-radius: 6px;
+  }
+  .panel .close:hover { background: var(--bg); color: var(--text); }
+  .panel .why-text {
+    font-size: 13px; line-height: 1.65; color: var(--text);
+    background: var(--bg); padding: 14px 16px; border-radius: 10px; margin-top: 14px;
+    white-space: pre-wrap;
+  }
+
+  .editable-title {
+    width: 100%; border: none; background: transparent;
+    font-size: 17px; font-weight: 600; color: var(--text);
+    font-family: inherit; padding: 4px 6px; border-radius: 6px; margin: -4px -6px;
+    outline: none;
+  }
+  .editable-title:hover, .editable-title:focus { background: var(--bg); }
+
+  .field-block { margin-top: 18px; }
+  .field-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-faint); margin-bottom: 6px; font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .notes-textarea {
+    width: 100%; min-height: 80px; resize: vertical;
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; font-family: inherit; font-size: 13px; line-height: 1.5;
+    background: var(--bg); color: var(--text); outline: none;
+  }
+  .notes-textarea:focus { border-color: var(--border-strong); }
+  .notes-textarea::placeholder { color: var(--text-faint); }
+
+  .field-grid {
+    display: grid; grid-template-columns: 110px 1fr; gap: 10px 14px;
+    font-size: 13px; margin: 0;
+  }
+  .field-grid dt { color: var(--text-faint); font-size: 12px; align-self: center; }
+  .field-grid dd { margin: 0; display: flex; align-items: center; gap: 6px; }
+  .field-grid select, .field-grid input[type="text"] {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 4px 8px; font-family: inherit; font-size: 13px;
+    outline: none;
+  }
+
+  .ai-insight {
+    margin-top: 14px; padding: 12px 14px;
+    background: linear-gradient(135deg, hsla(45, 95%, 55%, 0.08), hsla(280, 60%, 60%, 0.06));
+    border: 1px solid hsla(45, 95%, 55%, 0.25);
+    border-radius: 10px;
+    font-size: 13px; line-height: 1.6;
+  }
+  [data-theme="dark"] .ai-insight {
+    background: linear-gradient(135deg, hsla(45, 95%, 55%, 0.12), hsla(280, 60%, 60%, 0.08));
+    border-color: hsla(45, 95%, 55%, 0.3);
+  }
+  .ai-insight .label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: hsl(45, 80%, 45%); font-weight: 700; margin-bottom: 6px;
+  }
+  [data-theme="dark"] .ai-insight .label { color: hsl(45, 90%, 65%); }
+
+  .panel-actions { display: flex; gap: 8px; margin-top: 22px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>priority-post <span class="dim">mockup · sample data</span></h1>
+  <div class="toolbar">
+    <div class="view-toggle" id="view-toggle">
+      <button data-view="list">List</button>
+      <button data-view="constellation">Constellation</button>
+      <button data-view="split" class="active">Split</button>
+    </div>
+    <button class="btn" id="theme-btn">Dark</button>
+    <button class="btn" id="why-btn">Why this order?</button>
+  </div>
+</header>
+
+<main id="main" class="view-split">
+  <section class="list-pane">
+    <div class="add-bar">
+      <input id="add-input" type="text" placeholder="Add a task — just type. AI will fill in the rest." />
+      <span class="hint">⏎</span>
+    </div>
+    <div class="section-label">Now</div>
+    <div id="list-now"></div>
+    <div class="section-label" style="margin-top: 22px;">Next</div>
+    <div id="list-next"></div>
+  </section>
+
+  <section class="constellation-pane">
+    <svg id="constellation" viewBox="0 0 700 700" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="legend" id="legend"></div>
+  </section>
+</main>
+
+<aside class="panel" id="why-panel">
+  <button class="close" data-close="why-panel">×</button>
+  <h2>Why this order?</h2>
+  <div style="font-size: 12px; color: var(--text-faint);">Generated by Claude · cites factors driving the ranking</div>
+  <div class="why-text" id="why-text">Loading…</div>
+</aside>
+
+<aside class="panel" id="detail-panel">
+  <button class="close" data-close="detail-panel">×</button>
+  <input class="editable-title" id="detail-title" />
+  <div id="detail-meta" style="font-size: 12px; color: var(--text-faint);"></div>
+
+  <div class="field-block">
+    <div class="field-label">Notes</div>
+    <textarea class="notes-textarea" id="detail-notes" placeholder="Add notes, links, context…"></textarea>
+  </div>
+
+  <div class="field-block">
+    <div class="field-label">Details</div>
+    <dl class="field-grid" id="detail-fields"></dl>
+  </div>
+
+  <div id="ai-insight-slot"></div>
+
+  <div class="panel-actions">
+    <button class="btn" id="ask-ai-btn">✨ Ask AI about this task</button>
+    <button class="btn danger" id="delete-btn" style="margin-left: auto;">Delete</button>
+  </div>
+</aside>
+
+<script>
+// ---- sample data ---------------------------------------------------------
+// inferred[] tracks which fields were AI-filled (sparkle badge shown).
+// Anything not in inferred[] is treated as user-set / user-overridden.
+const SEED = [
+  { id: 1, title: "Review Alex's PR — DB migration",
+    notes: "Touch points: migrations/20240412_add_indexes.sql. Ping Sara if blocked on schema review.",
+    category: "work", urgency: 4, importance: 4, est_time_min: 30, focus: "light",
+    deadline_at: "today 5pm", scheduled: false, status: "pending",
+    inferred: ["category","urgency","importance","est_time_min","focus"], score: 0.94 },
+
+  { id: 2, title: "Finish design doc draft", notes: "",
+    category: "work", categories: ["work","side_project"],
+    urgency: 3, importance: 5, est_time_min: 120, focus: "deep",
+    deadline_at: "thu", scheduled: false, status: "pending",
+    inferred: ["category","urgency","est_time_min","focus"], score: 0.81 },
+
+  { id: 3, title: "Schedule dentist appointment", notes: "Cleaning overdue. Office: 555-0182.",
+    category: "health", urgency: 3, importance: 3, est_time_min: 10, focus: "light",
+    scheduled: false, status: "pending",
+    inferred: ["category","urgency","importance","est_time_min","focus"], score: 0.68 },
+
+  { id: 4, title: "Standup", notes: "",
+    category: "work", urgency: 5, importance: 2, est_time_min: 15, focus: "light",
+    start_at: "10:00", end_at: "10:15", scheduled: true, status: "pending",
+    inferred: ["category","importance","focus"], score: 0.62 },
+
+  { id: 5, title: "Pick up dry cleaning", notes: "Cleaners close at 7.",
+    category: "errands", urgency: 2, importance: 2, est_time_min: 20, focus: "light",
+    scheduled: false, status: "pending",
+    inferred: ["category","urgency","importance","est_time_min","focus"], score: 0.51 },
+
+  { id: 6, title: "Read chapter 7 — DDIA", notes: "",
+    category: "learning", categories: ["learning","work"],
+    urgency: 1, importance: 4, est_time_min: 60, focus: "deep",
+    scheduled: false, status: "pending",
+    inferred: ["category","urgency","est_time_min","focus"], score: 0.48 },
+
+  { id: 7, title: "Refactor scoring module", notes: "",
+    category: "side_project", urgency: 2, importance: 3, est_time_min: 90, focus: "deep",
+    scheduled: false, status: "pending",
+    inferred: ["category","urgency","importance","est_time_min","focus"], score: 0.42 },
+
+  { id: 8, title: "Reply to mom's email", notes: "",
+    category: "personal", urgency: 3, importance: 4, est_time_min: 10, focus: "light",
+    scheduled: false, status: "pending",
+    inferred: ["category","urgency","est_time_min","focus"], score: 0.58 },
+
+  { id: 9, title: "Gym — leg day", notes: "",
+    category: "health", urgency: 3, importance: 4, est_time_min: 60, focus: "medium",
+    start_at: "18:00", end_at: "19:00", scheduled: true, status: "pending",
+    inferred: ["category","importance","focus"], score: 0.55 },
+
+  { id: 10, title: "Research React Server Components patterns", notes: "Untouched 12 days — staleness pushing this up.",
+    category: "learning", urgency: 2, importance: 2, est_time_min: 45, focus: "deep",
+    scheduled: false, status: "pending",
+    inferred: ["category","urgency","importance","est_time_min","focus"], score: 0.34 },
+
+  { id: 11, title: "Update LinkedIn", notes: "",
+    category: "personal", urgency: 1, importance: 2, est_time_min: 30, focus: "light",
+    scheduled: false, status: "pending",
+    inferred: ["category","urgency","importance","est_time_min","focus"], score: 0.22 },
+
+  { id: 12, title: "Plan weekend trip", notes: "",
+    category: "personal", categories: ["personal","errands"],
+    urgency: 2, importance: 3, est_time_min: 40, focus: "light",
+    scheduled: false, status: "pending",
+    inferred: ["category","urgency","importance","est_time_min","focus"], score: 0.39 },
+];
+
+const CATEGORIES = {
+  work: "Work", personal: "Personal", health: "Health",
+  learning: "Learning", errands: "Errands", side_project: "Side project", other: "Other",
+};
+const FOCUS_LEVELS = ["light", "medium", "deep"];
+
+// ---- mutable state -------------------------------------------------------
+let tasks = JSON.parse(JSON.stringify(SEED));
+let nextId = 13;
+let selectedId = null;
+
+// ---- helpers -------------------------------------------------------------
+const isInferred = (t, f) => t.inferred.includes(f);
+const sparkle = (label) => `<span class="sparkle" title="AI inferred (${label}). Click to edit and pin your value.">✨</span>`;
+const timeStr = (m) => m >= 60 ? `${(m/60).toFixed(m%60===0?0:1)}h` : `${m}m`;
+const sortedActive = () => tasks.filter(t => t.status === "pending").sort((a,b) => b.score - a.score);
+const taskCategories = (t) => (t.categories && t.categories.length) ? t.categories : [t.category];
+
+// ---- list rendering ------------------------------------------------------
+function renderTaskCard(task, isTop) {
+  const inf = (f) => isInferred(task, f) ? sparkle(f) : "";
+  const cat = taskCategories(task).map(c =>
+    `<span class="pill cat" data-cat="${c}">${CATEGORIES[c]}</span>`).join("") + inf("category");
+  const time = `<span class="pill">${task.scheduled ? "" : "~"}${timeStr(task.est_time_min)}${inf("est_time_min")}</span>`;
+  const focus = `<span class="pill">${task.focus} focus${inf("focus")}</span>`;
+  const dl  = task.deadline_at ? `<span class="pill">due ${task.deadline_at}</span>` : "";
+  const sch = task.scheduled ? `<span class="pill">${task.start_at}–${task.end_at}</span>` : "";
+  const triaging = task._triaging ? "triaging" : "";
+
+  return `
+    <div class="task ${isTop?"top":""} ${task.status==="done"?"done":""} ${triaging}" data-id="${task.id}">
+      <div class="title-row">
+        <div class="checkbox" data-action="done"></div>
+        <div style="flex:1">
+          <div class="title">${task.title}</div>
+          <div class="meta">${cat}${dl}${sch}${time}${focus}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderList() {
+  const sorted = sortedActive();
+  const now = sorted.slice(0, 3);
+  const next = sorted.slice(3);
+  document.getElementById("list-now").innerHTML  = now.map((t,i) => renderTaskCard(t, i===0)).join("")
+    || `<div style="color:var(--text-faint);font-size:13px;padding:8px 0;">Nothing pressing. Add a task above.</div>`;
+  document.getElementById("list-next").innerHTML = next.map(t => renderTaskCard(t, false)).join("")
+    || `<div style="color:var(--text-faint);font-size:13px;padding:8px 0;">Nothing else queued.</div>`;
+}
+
+// ---- constellation -------------------------------------------------------
+// Simple deterministic packing: largest first, spiral outward to find a non-overlapping spot.
+function packCircles(items, w, h) {
+  const center = { x: w/2, y: h/2 };
+  const placed = [];
+  const sorted = [...items].sort((a,b) => b.r - a.r);
+  for (const it of sorted) {
+    if (placed.length === 0) { it.x = center.x; it.y = center.y; placed.push(it); continue; }
+    let ok = false;
+    for (let radius = it.r + 6; radius < Math.max(w,h) && !ok; radius += 3) {
+      const steps = Math.max(16, Math.floor(radius * 0.7));
+      for (let i = 0; i < steps && !ok; i++) {
+        const ang = (i / steps) * Math.PI * 2 + radius * 0.13;
+        const x = center.x + Math.cos(ang) * radius;
+        const y = center.y + Math.sin(ang) * radius;
+        if (x - it.r < 6 || x + it.r > w - 6 || y - it.r < 6 || y + it.r > h - 6) continue;
+        const overlap = placed.some(p => Math.hypot(p.x - x, p.y - y) < (p.r + it.r + 4));
+        if (!overlap) { it.x = x; it.y = y; placed.push(it); ok = true; }
+      }
+    }
+    if (!ok) { it.x = center.x; it.y = center.y; placed.push(it); }
+  }
+  return placed;
+}
+
+function renderConstellation() {
+  const svg = document.getElementById("constellation");
+  const W = 700, H = 700;
+  const active = sortedActive();
+  if (active.length === 0) {
+    svg.innerHTML = `<text x="350" y="350" text-anchor="middle" fill="var(--text-faint)" font-size="13">No active tasks.</text>`;
+    document.getElementById("legend").innerHTML = "";
+    return;
+  }
+  const topId = active[0].id;
+
+  // Build items with size driven by score. Top task gets a meaningful size bonus.
+  // Multi-cat tasks need a slightly larger bounding radius to fit overlapping lobes.
+  const items = active.map(t => {
+    const cats = taskCategories(t);
+    const baseR = 12 + Math.pow(t.score, 1.6) * 110;
+    const isTop = t.id === topId;
+    const r = isTop ? baseR * 1.25 : baseR;
+    const visualR = cats.length > 1 ? r * 1.20 : r; // outermost extent for ring + packing
+    return { task: t, r, visualR, isTop, cats };
+  });
+
+  // Pack on visualR so lobes don't overlap neighbors; spacing for top task ring too.
+  const packInputs = items.map(i => ({
+    ref: i,
+    r: i.visualR + (i.isTop ? 7 : 2),
+  }));
+  const placed = packCircles(packInputs, W, H);
+  placed.forEach(p => { p.ref.x = p.x; p.ref.y = p.y; });
+
+  svg.innerHTML = items.map(renderBubble).join("");
+
+  document.getElementById("legend").innerHTML =
+    Object.entries(CATEGORIES).map(([k, label]) =>
+      `<span class="item"><span class="swatch" style="background:var(--cat-${k})"></span>${label}</span>`
+    ).join("");
+}
+
+function renderBubble(it) {
+  const { task: t, r, x, y, isTop, cats, visualR } = it;
+  const label = t.title.length > 14 ? t.title.slice(0, 13) + "…" : t.title;
+  const fontSize = Math.max(10, Math.min(14, r * 0.18));
+
+  let shapes = "";
+  if (cats.length === 1) {
+    shapes = `<circle cx="${x}" cy="${y}" r="${r}" fill="var(--cat-${cats[0]})"/>`;
+  } else {
+    const lobeR = r * 0.78;
+    const offset = r * 0.42;
+    shapes = cats.map((cat, i) => {
+      const ang = (i / cats.length) * Math.PI * 2 - Math.PI / 2;
+      const lx = x + Math.cos(ang) * offset;
+      const ly = y + Math.sin(ang) * offset;
+      return `<circle cx="${lx}" cy="${ly}" r="${lobeR}" fill="var(--cat-${cat})" opacity="0.88"/>`;
+    }).join("");
+  }
+
+  const topRing = isTop
+    ? `<circle class="top-ring" cx="${x}" cy="${y}" r="${visualR + 5}" fill="none" stroke="var(--accent)" stroke-width="3.5"/>`
+    : "";
+
+  const text = r > 26
+    ? `<text x="${x}" y="${y + 3}" font-size="${fontSize}">${label}</text>`
+    : "";
+
+  return `<g class="bubble ${isTop?"top":""}" data-id="${t.id}">
+    ${topRing}${shapes}${text}
+  </g>`;
+}
+
+// ---- detail panel --------------------------------------------------------
+function openDetail(id) {
+  const task = tasks.find(t => t.id === id);
+  if (!task) return;
+  selectedId = id;
+
+  document.getElementById("detail-title").value = task.title;
+  const cats = taskCategories(task);
+  const remaining = Object.keys(CATEGORIES).filter(c => !cats.includes(c));
+  const editChips = cats.map(c => `
+    <span class="pill cat" data-cat="${c}">
+      ${CATEGORIES[c]}
+      <button class="chip-x" data-action="remove-tag" data-cat="${c}" title="Remove tag">×</button>
+    </span>`).join("");
+  const addBtn = remaining.length > 0
+    ? `<span class="pill add-tag" data-action="add-tag">+ tag</span>`
+    : "";
+  const sparkleMarker = isInferred(task,"category") ? sparkle("category") : "";
+  document.getElementById("detail-meta").innerHTML =
+    `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;">
+      ${editChips}${addBtn}${sparkleMarker}
+      ${task.deadline_at ? `<span class="pill">due ${task.deadline_at}</span>` : ""}
+      ${task.scheduled ? `<span class="pill">${task.start_at}–${task.end_at}</span>` : ""}
+    </div>`;
+  document.getElementById("detail-notes").value = task.notes || "";
+
+  // editable time + focus + scheduled fields (categories handled above as chips)
+  const inf = (f) => isInferred(task, f) ? sparkle(f) : "";
+  const focusOpts = FOCUS_LEVELS.map(f =>
+    `<option value="${f}" ${f===task.focus?"selected":""}>${f}</option>`).join("");
+  const timeLabel = task.scheduled ? "Duration" : "Est. time";
+
+  document.getElementById("detail-fields").innerHTML = `
+    <dt>${timeLabel}</dt>
+    <dd><input type="text" data-field="est_time_min" value="${timeStr(task.est_time_min)}" style="width:80px"/>${inf("est_time_min")}</dd>
+    <dt>Focus</dt>
+    <dd><select data-field="focus">${focusOpts}</select>${inf("focus")}</dd>
+    ${task.deadline_at ? `<dt>Deadline</dt><dd>${task.deadline_at}</dd>` : ""}
+    ${task.scheduled ? `<dt>Scheduled</dt><dd>${task.start_at}–${task.end_at}</dd>` : ""}
+  `;
+
+  document.getElementById("ai-insight-slot").innerHTML = "";
+  document.getElementById("detail-panel").classList.add("open");
+}
+
+function commitDetailEdits() {
+  if (selectedId == null) return;
+  const task = tasks.find(t => t.id === selectedId);
+  if (!task) return;
+
+  const newTitle = document.getElementById("detail-title").value.trim();
+  if (newTitle && newTitle !== task.title) task.title = newTitle;
+  task.notes = document.getElementById("detail-notes").value;
+
+  document.querySelectorAll("#detail-fields [data-field]").forEach(el => {
+    const f = el.dataset.field;
+    let v = el.value.trim();
+    if (f === "est_time_min") {
+      const m = v.match(/(\d+(?:\.\d+)?)\s*(h|m)?/i);
+      if (m) v = m[2]?.toLowerCase() === "h" ? Math.round(parseFloat(m[1]) * 60) : parseInt(m[1], 10);
+    }
+    if (task[f] !== v) {
+      task[f] = v;
+      // user override = remove from inferred[]
+      task.inferred = task.inferred.filter(x => x !== f);
+    }
+  });
+  rerender();
+}
+
+// ---- mutations -----------------------------------------------------------
+function addTask(title) {
+  if (!title.trim()) return;
+  const t = {
+    id: nextId++, title: title.trim(), notes: "",
+    category: "other", urgency: 2, importance: 2, est_time_min: 30, focus: "light",
+    scheduled: false, status: "pending",
+    inferred: [], score: 0.3, _triaging: true,
+  };
+  tasks.unshift(t);
+  rerender();
+
+  // fake AI triage with delay
+  setTimeout(() => {
+    const guessed = guessTriage(t.title);
+    Object.assign(t, guessed);
+    t.inferred = ["category","urgency","importance","est_time_min","focus"];
+    t.score = 0.3 + Math.random() * 0.4;
+    delete t._triaging;
+    rerender();
+  }, 900);
+}
+
+function guessTriage(title) {
+  const s = title.toLowerCase();
+  let category = "other";
+  if (/email|mom|dad|family|friend|trip|plan/.test(s)) category = "personal";
+  else if (/gym|dentist|doctor|run|sleep|meditat/.test(s)) category = "health";
+  else if (/read|learn|study|research|chapter|course/.test(s)) category = "learning";
+  else if (/buy|pickup|pick up|store|errand|laundry/.test(s)) category = "errands";
+  else if (/refactor|side|build|prototype|hack/.test(s)) category = "side_project";
+  else if (/pr|review|standup|meeting|design|ship|deploy|deadline/.test(s)) category = "work";
+
+  let focus = "light";
+  if (/design|write|refactor|build|deep|study/.test(s)) focus = "deep";
+  else if (/review|plan|prep/.test(s)) focus = "medium";
+
+  let est_time_min = 30;
+  if (focus === "deep") est_time_min = 90;
+  else if (focus === "medium") est_time_min = 45;
+
+  return { category, focus, est_time_min,
+    urgency: Math.ceil(Math.random()*3)+1, importance: Math.ceil(Math.random()*3)+1 };
+}
+
+function deleteTask(id) {
+  tasks = tasks.filter(t => t.id !== id);
+  document.getElementById("detail-panel").classList.remove("open");
+  selectedId = null;
+  rerender();
+}
+
+function toggleDone(id) {
+  const t = tasks.find(t => t.id === id);
+  if (!t) return;
+  t.status = t.status === "done" ? "pending" : "done";
+  rerender();
+}
+
+function rerender() { renderList(); renderConstellation(); }
+
+// ---- "Ask AI about this task" stub --------------------------------------
+function askAIAboutTask(id) {
+  const t = tasks.find(t => t.id === id);
+  if (!t) return;
+  const slot = document.getElementById("ai-insight-slot");
+  slot.innerHTML = `<div class="ai-insight"><div class="label">✨ Loading…</div></div>`;
+  setTimeout(() => {
+    const insights = [
+      `This is a ${t.focus}-focus task taking ~${timeStr(t.est_time_min)}. ${t.deadline_at ? `Deadline of ${t.deadline_at} is the main pressure.` : "No hard deadline, so it's competing on importance and fit."} A reasonable first step: ${firstStep(t.title)}.`,
+      `Possible blockers worth checking: do you have everything you need before starting, or will you stall mid-task? If unsure, spend 2 minutes scoping before diving in.`,
+      `${t.focus === "deep" ? "Best done in a protected block — not between meetings." : "Fits in spare 10–30m windows; don't overthink it."}`,
+    ];
+    slot.innerHTML = `<div class="ai-insight"><div class="label">✨ AI insight</div>${insights.join("<br><br>")}</div>`;
+  }, 700);
+}
+
+function firstStep(title) {
+  const s = title.toLowerCase();
+  if (s.includes("review")) return "skim the diff to gauge scope";
+  if (s.includes("write") || s.includes("draft") || s.includes("doc")) return "outline the headers, then fill the easiest one";
+  if (s.includes("schedule") || s.includes("appointment")) return "find the phone number / link, set a 5-min timer";
+  if (s.includes("read")) return "open to the chapter and read the section headings first";
+  return "break it into the smallest first action you can finish in 5 minutes";
+}
+
+// ---- "Why this order?" stub ---------------------------------------------
+function generateWhy() {
+  const sorted = sortedActive();
+  if (sorted.length === 0) return "No active tasks.";
+  const top = sorted[0], second = sorted[1], third = sorted[2];
+  let text = `Top of your list is **${top.title}**`;
+  if (top.deadline_at) text += ` — deadline pressure (${top.deadline_at}) is the main driver`;
+  text += `. It's ${top.focus} focus and takes about ${timeStr(top.est_time_min)}, so it fits the next slot well.`;
+  if (second) text += `\n\n**${second.title}** is next: ${second.deadline_at ? `softer deadline (${second.deadline_at})` : "no hard deadline"}, but importance is high.`;
+  if (third) text += `\n\n**${third.title}** rounds out the top three.`;
+  text += `\n\nWatch list:\n• Stale tasks (untouched > 7 days) get a small score boost so they don't rot.\n• Scheduled items are in the list but timed — they'll happen on their own.`;
+  return text;
+}
+
+// ---- events --------------------------------------------------------------
+document.addEventListener("click", (e) => {
+  // close panels
+  const closeId = e.target.dataset.close;
+  if (closeId) { document.getElementById(closeId).classList.remove("open"); selectedId = null; return; }
+
+  // checkbox
+  if (e.target.matches("[data-action='done']")) {
+    e.stopPropagation();
+    const id = Number(e.target.closest(".task").dataset.id);
+    toggleDone(id);
+    return;
+  }
+
+  // remove tag
+  if (e.target.matches("[data-action='remove-tag']")) {
+    e.stopPropagation();
+    const cat = e.target.dataset.cat;
+    const task = tasks.find(t => t.id === selectedId);
+    if (!task) return;
+    let cats = taskCategories(task).filter(c => c !== cat);
+    if (cats.length === 0) cats = ["other"];
+    task.categories = cats;
+    task.category = cats[0];
+    task.inferred = task.inferred.filter(x => x !== "category");
+    openDetail(task.id);
+    rerender();
+    return;
+  }
+
+  // pick a tag from the popover
+  const pickBtn = e.target.closest("[data-action='pick-tag']");
+  if (pickBtn) {
+    e.stopPropagation();
+    const cat = pickBtn.dataset.cat;
+    const task = tasks.find(t => t.id === selectedId);
+    if (!task) return;
+    const cats = taskCategories(task);
+    if (!cats.includes(cat)) {
+      task.categories = [...cats, cat];
+      task.category = task.categories[0];
+      task.inferred = task.inferred.filter(x => x !== "category");
+    }
+    openDetail(task.id);
+    rerender();
+    return;
+  }
+
+  // add tag → swap pill for an immediately-visible popover of colored chips
+  const addBtn = e.target.closest("[data-action='add-tag']");
+  if (addBtn) {
+    e.stopPropagation();
+    const task = tasks.find(t => t.id === selectedId);
+    if (!task) return;
+    const cats = taskCategories(task);
+    const remaining = Object.keys(CATEGORIES).filter(c => !cats.includes(c));
+    if (remaining.length === 0) return;
+    const popover = document.createElement("div");
+    popover.className = "tag-picker";
+    popover.innerHTML = remaining.map(c =>
+      `<button class="pill cat" data-cat="${c}" data-action="pick-tag">${CATEGORIES[c]}</button>`
+    ).join("");
+    addBtn.replaceWith(popover);
+    return;
+  }
+
+  // any other click → if a tag-picker is open, dismiss it back to the + button
+  const openPicker = document.querySelector(".tag-picker");
+  if (openPicker && !e.target.closest(".tag-picker") && selectedId != null) {
+    openDetail(selectedId);
+  }
+
+  // open detail from card or bubble
+  const card = e.target.closest(".task");
+  if (card) { openDetail(Number(card.dataset.id)); return; }
+  const bubble = e.target.closest(".bubble");
+  if (bubble) { openDetail(Number(bubble.dataset.id)); return; }
+
+  // click on blank background → close any open panel
+  if (e.target.matches("main, .list-pane, .constellation-pane, #constellation, .legend")) {
+    document.querySelectorAll(".panel.open").forEach(p => p.classList.remove("open"));
+    selectedId = null;
+  }
+});
+
+// commit edits when leaving fields
+document.getElementById("detail-panel").addEventListener("change", commitDetailEdits);
+document.getElementById("detail-title").addEventListener("blur", commitDetailEdits);
+document.getElementById("detail-notes").addEventListener("blur", commitDetailEdits);
+
+document.getElementById("delete-btn").addEventListener("click", () => {
+  if (selectedId != null && confirm("Delete this task?")) deleteTask(selectedId);
+});
+document.getElementById("ask-ai-btn").addEventListener("click", () => {
+  if (selectedId != null) askAIAboutTask(selectedId);
+});
+
+document.getElementById("add-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.value.trim()) {
+    addTask(e.target.value);
+    e.target.value = "";
+  }
+});
+
+document.getElementById("view-toggle").addEventListener("click", (e) => {
+  const v = e.target.dataset.view;
+  if (!v) return;
+  document.querySelectorAll("#view-toggle button").forEach(b => b.classList.toggle("active", b.dataset.view === v));
+  document.getElementById("main").className = `view-${v}`;
+  setTimeout(renderConstellation, 50);
+});
+
+document.getElementById("why-btn").addEventListener("click", () => {
+  document.getElementById("why-text").textContent = generateWhy();
+  document.getElementById("why-panel").classList.add("open");
+});
+
+// theme toggle
+const themeBtn = document.getElementById("theme-btn");
+function applyTheme(t) {
+  document.documentElement.setAttribute("data-theme", t);
+  themeBtn.textContent = t === "dark" ? "Light" : "Dark";
+  setTimeout(renderConstellation, 30);
+}
+themeBtn.addEventListener("click", () => {
+  const cur = document.documentElement.getAttribute("data-theme") || "light";
+  applyTheme(cur === "dark" ? "light" : "dark");
+});
+// pick initial theme from system preference
+applyTheme(window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+
+// ---- init ----------------------------------------------------------------
+rerender();
+window.addEventListener("resize", renderConstellation);
+</script>
+</body>
+</html>
