@@ -12,11 +12,39 @@ import {
 } from "./actions";
 import { TagPicker } from "./TagPicker";
 
-export function TaskRow({ task }: { task: Task }) {
+function isPinned(task: Task, field: string): boolean {
+  const pf = task.pinnedFields;
+  if (Array.isArray(pf)) return pf.includes(field);
+  return false;
+}
+
+function Sparkle({ field }: { field: string }) {
+  return (
+    <span
+      className="sparkle"
+      title={`AI inferred (${field}). Click to edit and pin your value.`}
+    >
+      ✨
+    </span>
+  );
+}
+
+function formatTime(min: number): string {
+  if (min >= 60) {
+    const h = min / 60;
+    const display = min % 60 === 0 ? h.toFixed(0) : h.toFixed(1);
+    return `${display}h`;
+  }
+  return `${min}m`;
+}
+
+export function TaskRow({ task, isTop = false }: { task: Task; isTop?: boolean }) {
   const [, startTransition] = useTransition();
   const [picking, setPicking] = useState(false);
   const [title, setTitle] = useState(task.title);
   const done = task.doneAt !== null;
+
+  const showSparkle = (field: string) => !isPinned(task, field);
 
   function commitTitle() {
     if (title.trim() === task.title) return;
@@ -27,8 +55,11 @@ export function TaskRow({ task }: { task: Task }) {
     startTransition(() => updateTaskTitle(task.id, title));
   }
 
+  const showMetaPills =
+    task.estTimeMin !== null || task.focus !== null;
+
   return (
-    <div className={`task ${done ? "done" : ""}`}>
+    <div className={`task ${isTop ? "top" : ""} ${done ? "done" : ""}`}>
       <div className="title-row">
         <button
           type="button"
@@ -80,6 +111,9 @@ export function TaskRow({ task }: { task: Task }) {
             </button>
           </span>
         ))}
+        {task.categories.length > 0 && showSparkle("categories") && task.urgency !== null && (
+          <Sparkle field="categories" />
+        )}
         <button
           type="button"
           className="pill add-tag"
@@ -87,6 +121,23 @@ export function TaskRow({ task }: { task: Task }) {
         >
           + tag
         </button>
+        {task.estTimeMin !== null && (
+          <span className="pill">
+            ~{formatTime(task.estTimeMin)}
+            {showSparkle("estTimeMin") && <Sparkle field="estTimeMin" />}
+          </span>
+        )}
+        {task.focus && (
+          <span className="pill">
+            {task.focus} focus
+            {showSparkle("focus") && <Sparkle field="focus" />}
+          </span>
+        )}
+        {!showMetaPills && task.urgency === null && (
+          <span className="pill" style={{ opacity: 0.5, fontStyle: "italic" }}>
+            awaiting triage
+          </span>
+        )}
         {picking && (
           <TagPicker
             current={task.categories}

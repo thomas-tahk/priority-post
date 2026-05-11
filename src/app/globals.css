@@ -182,6 +182,31 @@ body {
 .task.done .title {
   text-decoration: line-through;
 }
+.task.top {
+  padding: 18px 20px;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow-lg);
+  border-color: var(--border-strong);
+}
+.task.top .title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.sparkle {
+  color: hsl(45, 95%, 55%);
+  font-size: 10px;
+  margin-left: 1px;
+  opacity: 0.9;
+}
+[data-theme="dark"] .sparkle {
+  color: hsl(48, 95%, 65%);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .sparkle {
+    color: hsl(48, 95%, 65%);
+  }
+}
 
 .task .title-row {
   display: flex;
