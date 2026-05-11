@@ -8,7 +8,7 @@ constellation (packed bubbles, color = category, size = score). Dark mode suppor
 
 ## Stack (locked — don't substitute without asking)
 
-- Next.js 15 (App Router) + TypeScript + Tailwind + shadcn/ui
+- Next.js 16 (App Router) + TypeScript + Tailwind 4 + shadcn/ui
 - Postgres in Docker (`docker-compose.yml` at repo root) for dev. Phase 2: Neon.
 - Drizzle ORM. Standard SQL only — **no Postgres-only features (jsonb queries, FTS) until phase 3.**
   Keeps the DB swappable.
