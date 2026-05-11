@@ -4,17 +4,65 @@ import { db } from "@/db";
 import { tasks } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { ensureAtLeastOne, type Category } from "./categories";
+import { triageTask } from "@/features/triage/triage";
+
+function pinnedSet(raw: unknown): Set<string> {
+  if (Array.isArray(raw)) return new Set(raw.filter((x): x is string => typeof x === "string"));
+  return new Set();
+}
+
+function pinnedJsonWith(raw: unknown, field: string): string[] {
+  const s = pinnedSet(raw);
+  s.add(field);
+  return Array.from(s);
+}
+
+async function pinField(id: number, field: string) {
+  const [row] = await db
+    .select({ pinnedFields: tasks.pinnedFields })
+    .from(tasks)
+    .where(eq(tasks.id, id));
+  if (!row) return;
+  const next = pinnedJsonWith(row.pinnedFields, field);
+  await db.update(tasks).set({ pinnedFields: next }).where(eq(tasks.id, id));
+}
 
 export async function createTask(input: { title: string; categories?: string[] }) {
   const title = input.title.trim();
   if (!title) return;
 
-  await db.insert(tasks).values({
-    title,
-    categories: ensureAtLeastOne(input.categories ?? []),
-  });
+  const userPickedCategories = (input.categories ?? []).length > 0;
+  const initialCategories = ensureAtLeastOne(input.categories ?? []);
+  const initialPinned = userPickedCategories ? ["categories"] : [];
+
+  const [inserted] = await db
+    .insert(tasks)
+    .values({ title, categories: initialCategories, pinnedFields: initialPinned })
+    .returning({ id: tasks.id });
+
   revalidatePath("/");
+
+  // Fire async triage AFTER the response is sent. Claude is never on the
+  // critical render path. If triage fails or no API key, the row stays with
+  // null AI fields and the deterministic scorer falls back to defaults.
+  after(async () => {
+    const result = await triageTask(title);
+    if (!result) return;
+
+    const updates: Partial<typeof tasks.$inferInsert> = {
+      urgency: result.urgency,
+      importance: result.importance,
+      estTimeMin: result.est_time_min,
+      focus: result.focus,
+    };
+    // Only overwrite categories if the user did not pick them at creation time.
+    if (!userPickedCategories) updates.categories = result.categories;
+
+    await db.update(tasks).set(updates).where(eq(tasks.id, inserted.id));
+    revalidatePath("/");
+  });
 }
 
 export async function updateTaskTitle(id: number, title: string) {
@@ -27,6 +75,7 @@ export async function updateTaskTitle(id: number, title: string) {
 export async function setTaskCategories(id: number, categories: string[]) {
   const next = ensureAtLeastOne(categories);
   await db.update(tasks).set({ categories: next }).where(eq(tasks.id, id));
+  await pinField(id, "categories");
   revalidatePath("/");
 }
 
@@ -42,6 +91,7 @@ export async function addTaskCategory(id: number, category: Category) {
       )`,
     })
     .where(eq(tasks.id, id));
+  await pinField(id, "categories");
   revalidatePath("/");
 }
 
@@ -55,6 +105,7 @@ export async function removeTaskCategory(id: number, category: Category) {
   const remaining = row.categories.filter((c) => c !== category);
   const next = ensureAtLeastOne(remaining);
   await db.update(tasks).set({ categories: next }).where(eq(tasks.id, id));
+  await pinField(id, "categories");
   revalidatePath("/");
 }
 
