@@ -72,6 +72,24 @@ export async function updateTaskTitle(id: number, title: string) {
   revalidatePath("/");
 }
 
+export async function updateTaskNotes(id: number, notes: string) {
+  await db.update(tasks).set({ notes: notes || null }).where(eq(tasks.id, id));
+  revalidatePath("/");
+}
+
+export async function updateTaskFocus(id: number, focus: "low" | "medium" | "high") {
+  await db.update(tasks).set({ focus }).where(eq(tasks.id, id));
+  await pinField(id, "focus");
+  revalidatePath("/");
+}
+
+export async function updateTaskEstTime(id: number, minutes: number) {
+  if (!Number.isFinite(minutes) || minutes < 1) return;
+  await db.update(tasks).set({ estTimeMin: Math.round(minutes) }).where(eq(tasks.id, id));
+  await pinField(id, "estTimeMin");
+  revalidatePath("/");
+}
+
 export async function setTaskCategories(id: number, categories: string[]) {
   const next = ensureAtLeastOne(categories);
   await db.update(tasks).set({ categories: next }).where(eq(tasks.id, id));

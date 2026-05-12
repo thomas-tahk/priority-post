@@ -116,13 +116,78 @@ body {
   font-size: 12px;
 }
 
+.toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.view-toggle {
+  display: inline-flex;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2px;
+}
+.view-toggle button {
+  background: transparent;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-family: inherit;
+}
+.view-toggle button.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.btn {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+}
+.btn:hover {
+  box-shadow: var(--shadow);
+}
+
+/* main layout — list | constellation | split */
+main {
+  display: grid;
+  grid-template-columns: minmax(380px, 1fr) minmax(380px, 1fr);
+  height: calc(100vh - 65px);
+}
+main.view-list {
+  grid-template-columns: 1fr;
+}
+main.view-constellation {
+  grid-template-columns: 1fr;
+}
+main.view-list .constellation-pane,
+main.view-constellation .list-pane {
+  display: none;
+}
+
 /* list */
 .list-pane {
   overflow-y: auto;
   padding: 22px 28px;
+  border-right: 1px solid var(--border);
+  width: 100%;
+}
+main.view-list .list-pane {
+  border-right: none;
   max-width: 720px;
   margin: 0 auto;
-  width: 100%;
 }
 
 .section-label {
@@ -373,4 +438,174 @@ body {
   font-size: 13px;
   text-align: center;
   padding: 40px 0;
+}
+
+/* constellation */
+.constellation-pane {
+  overflow: hidden;
+  padding: 22px 28px;
+  background: var(--constellation-bg);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.constellation-pane svg {
+  flex: 1;
+  width: 100%;
+  display: block;
+}
+.constellation-empty {
+  color: var(--text-faint);
+  font-size: 13px;
+  text-align: center;
+  padding: 80px 0;
+  flex: 1;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 11px;
+  color: var(--text-dim);
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.legend .item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.legend .swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.bubble {
+  cursor: pointer;
+  transition: transform 0.12s ease;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+.bubble:hover {
+  transform: scale(1.06);
+}
+.bubble.top .top-ring {
+  pointer-events: none;
+}
+
+/* detail panel — slide-in from right */
+.panel {
+  position: fixed;
+  top: 65px;
+  right: -440px;
+  width: 420px;
+  height: calc(100vh - 65px);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  transition: right 0.22s ease;
+  overflow-y: auto;
+  z-index: 20;
+  padding: 22px 24px 40px;
+}
+.panel.open {
+  right: 0;
+}
+.panel .close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--text-faint);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+.panel .close:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.editable-title {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  font-family: inherit;
+  padding: 4px 6px;
+  border-radius: 6px;
+  margin: -4px -6px;
+  outline: none;
+}
+.editable-title:hover,
+.editable-title:focus {
+  background: var(--bg);
+}
+
+.field-block {
+  margin-top: 18px;
+}
+.field-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  margin-bottom: 6px;
+  font-weight: 600;
+  display: block;
+}
+.notes-textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+}
+.notes-textarea:focus {
+  border-color: var(--border-strong);
+}
+.notes-textarea::placeholder {
+  color: var(--text-faint);
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 10px 14px;
+  font-size: 13px;
+  margin: 0;
+}
+.field-grid dt {
+  color: var(--text-faint);
+  font-size: 12px;
+  align-self: center;
+}
+.field-grid dd {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.field-grid select,
+.field-grid input[type="text"] {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
 }
