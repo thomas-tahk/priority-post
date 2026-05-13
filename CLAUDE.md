@@ -85,7 +85,7 @@ Locked decisions:
     Top-right "do now", top-left "schedule", bottom-right "**batch**" (NOT "delegate" — single-user app),
     bottom-left "drop". Faint typography (`text-faint`).
   - Bubbles are **flat fill** with a small drop shadow. Tried radial gradient ("marble look") in Sprint 4.1; at 8-32px the gradient transition reads as a crater/defect rather than dimensionality. Don't reintroduce.
-  - **Faint dashed crosshairs** through the center of the map (one horizontal, one vertical, `var(--border)` at ~0.55 opacity). These anchor the 2x2 quadrant structure visually — corner labels alone weren't enough.
+  - **Dashed crosshairs** through the center of the map (one horizontal, one vertical, `var(--border-strong)` stroke 1.5px, dasharray "5 6", opacity 1). Visible — not faint. Owner explicitly rejected the original 0.55-opacity version as too subtle. These anchor the 2x2 quadrant structure visually; corner labels alone weren't enough.
   - **Bubble size = est_time_min** (effort), not score. Range ~8-32px. Different signal than position.
   - **Multi-cat**: solid first-category color + hover tooltip listing all. Do NOT use Venn lobes
     (too noisy in this layout — was tried and removed).

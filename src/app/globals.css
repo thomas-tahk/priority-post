@@ -495,12 +495,12 @@ main.view-list .list-pane {
   border-radius: 50%;
 }
 
-/* faint crosshairs anchoring the 2x2 quadrant structure */
+/* crosshairs anchoring the 2x2 quadrant structure — visible, not loud */
 .quadrant-axis {
-  stroke: var(--border);
-  stroke-width: 1;
-  stroke-dasharray: 3 5;
-  opacity: 0.55;
+  stroke: var(--border-strong);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 6;
+  opacity: 1;
   pointer-events: none;
 }
 
