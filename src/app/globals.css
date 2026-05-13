@@ -495,11 +495,31 @@ main.view-list .list-pane {
   border-radius: 50%;
 }
 
+/* faint crosshairs anchoring the 2x2 quadrant structure */
+.quadrant-axis {
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 .bubble {
   cursor: pointer;
   transition: transform 0.16s ease, filter 0.16s ease;
   transform-origin: center;
   transform-box: fill-box;
+}
+.bubble .bubble-fill {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.18));
+}
+[data-theme="dark"] .bubble .bubble-fill {
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .bubble .bubble-fill {
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
+  }
 }
 .bubble:hover {
   transform: scale(1.1);

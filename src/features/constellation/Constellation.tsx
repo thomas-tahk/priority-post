@@ -55,15 +55,22 @@ export function Constellation({
             height={size.h}
             preserveAspectRatio="xMidYMid meet"
           >
-            <defs>
-              {CATEGORIES.map((c) => (
-                <radialGradient key={c} id={`grad-${c}`} cx="35%" cy="30%" r="70%">
-                  <stop offset="0%" stopColor="white" stopOpacity={0.32} />
-                  <stop offset="55%" stopColor={`var(--cat-${c})`} stopOpacity={1} />
-                  <stop offset="100%" stopColor={`var(--cat-${c})`} stopOpacity={1} />
-                </radialGradient>
-              ))}
-            </defs>
+            {/* Faint crosshairs through the center — anchors the 2x2 structure
+                so bubbles read as positions on a map, not floating dots. */}
+            <line
+              className="quadrant-axis"
+              x1={size.w / 2}
+              y1={0}
+              x2={size.w / 2}
+              y2={size.h}
+            />
+            <line
+              className="quadrant-axis"
+              x1={0}
+              y1={size.h / 2}
+              x2={size.w}
+              y2={size.h / 2}
+            />
 
             {placements.map((p) => {
               const tooltip =
@@ -90,10 +97,11 @@ export function Constellation({
                     />
                   )}
                   <circle
+                    className="bubble-fill"
                     cx={p.x}
                     cy={p.y}
                     r={p.r}
-                    fill={`url(#grad-${p.primaryCat})`}
+                    fill={`var(--cat-${p.primaryCat})`}
                   />
                 </g>
               );
