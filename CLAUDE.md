@@ -67,22 +67,35 @@ score = w_urgency * urgency_pressure(now, urgency, start_at)
 Weights: `w_urgency=0.5, w_importance=0.35, w_fit=0.15`. Ties broken by `created_at` (older first).
 Rule: scorer must be a **pure function** — easy to unit test, no DB calls inside.
 
-## UX rules (mockup.html is the visual contract)
+## UX rules
 
-`./mockup.html` is the reference. Open in a browser before any UI work. Locked decisions:
+`./mockup.html` is the original reference for typography, chip styling, list-card layout, and detail
+panel. The constellation portion of the mockup has been **superseded** by the Eisenhower priority map
+(below) — don't restore the packed-bubble design.
 
-- **Constellation colors** (don't substitute):
+Locked decisions:
+
+- **Category colors** (don't substitute, used in list chips + map bubbles + legend):
   - Light: `work #2563eb`, `personal #9333ea`, `health #16a34a`, `learning #ea580c`,
     `errands #0891b2`, `side_project #db2777`, `other #64748b`
   - Dark: brighter siblings — `#3b82f6, #a855f7, #22c55e, #f97316, #06b6d4, #ec4899, #94a3b8`
-- **Bubbles only** in constellation. No squares for scheduled tasks. All solid lines.
-- **Score encodes size only.** No opacity/saturation gradients.
-- **Top task**: 3.5px ring in `var(--accent)` + ~25% size bonus.
-- **Multi-cat**: render as overlapping circle lobes (Venn-style), one circle per category.
+- **Visual view = Eisenhower priority map** (revised 2026-05-12; replaced packed-bubble constellation).
+  - 2D positioning: x = urgency, y = importance (top = high importance, right = high urgency).
+  - Quadrant labels in corners only — no axis lines, no ticks, no numeric labels.
+    Top-right "do now", top-left "schedule", bottom-right "**batch**" (NOT "delegate" — single-user app),
+    bottom-left "drop". Faint typography (`text-faint`).
+  - Bubbles use a subtle radial gradient (not flat fill) — feels like marbles, not chart dots.
+  - **Bubble size = est_time_min** (effort), not score. Range ~8-32px. Different signal than position.
+  - **Multi-cat**: solid first-category color + hover tooltip listing all. Do NOT use Venn lobes
+    (too noisy in this layout — was tried and removed).
+  - **Top task**: 3.5px ring in `var(--accent)` + slow 2.4s pulse animation.
+    Disable pulse under `prefers-reduced-motion: reduce`.
+  - Tasks at identical (urgency, importance) get a small deterministic jitter so they don't perfectly
+    overlap. Defaults for null AI fields: urgency=30, importance=40 (matches scorer DEFAULTS).
 - **Tag editing**: clicking `+ tag` shows a popover of colored chips immediately. No native `<select>`.
   All edits auto-save.
 - **Detail panel**: notes textarea is the prominent area. **No numerical score breakdown** — the
-  "Why this order?" prose covers it. Click outside the panel to close.
+  "Why this order?" prose covers it (Sprint 5). Click outside the panel to close.
 - **Field naming**: "Focus" (not "Energy"); "Est. time" for unscheduled, "Duration" for scheduled.
 - Dark mode toggle in header, defaults to `prefers-color-scheme`.
 

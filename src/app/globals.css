@@ -440,7 +440,7 @@ main.view-list .list-pane {
   padding: 40px 0;
 }
 
-/* constellation */
+/* constellation — Eisenhower priority map */
 .constellation-pane {
   overflow: hidden;
   padding: 22px 28px;
@@ -454,6 +454,20 @@ main.view-list .list-pane {
   width: 100%;
   display: block;
 }
+.quadrant-label {
+  position: absolute;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+  font-weight: 600;
+  pointer-events: none;
+  z-index: 1;
+}
+.quadrant-label.q-do { top: 22px; right: 28px; }
+.quadrant-label.q-schedule { top: 22px; left: 28px; }
+.quadrant-label.q-batch { bottom: 70px; right: 28px; }
+.quadrant-label.q-drop { bottom: 70px; left: 28px; }
 .constellation-empty {
   color: var(--text-faint);
   font-size: 13px;
@@ -483,15 +497,31 @@ main.view-list .list-pane {
 
 .bubble {
   cursor: pointer;
-  transition: transform 0.12s ease;
+  transition: transform 0.16s ease, filter 0.16s ease;
   transform-origin: center;
   transform-box: fill-box;
 }
 .bubble:hover {
-  transform: scale(1.06);
+  transform: scale(1.1);
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.18));
 }
 .bubble.top .top-ring {
   pointer-events: none;
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: top-pulse 2.4s ease-in-out infinite;
+}
+@keyframes top-pulse {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bubble.top .top-ring {
+    animation: none;
+  }
+  .bubble {
+    transition: none;
+  }
 }
 
 /* detail panel — slide-in from right */

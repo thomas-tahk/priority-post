@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { lobePositions, packLayout, type ScoredTask } from "./layout";
+import {
+  PADDING,
+  MAX_R,
+  MIN_R,
+  placeOnMap,
+  radiusFromEstTime,
+  type ScoredTask,
+} from "./layout";
 import type { Task } from "@/db/schema";
 
 function mkScored(overrides: Partial<ScoredTask> & { _score: number; id: number }): ScoredTask {
@@ -7,7 +14,7 @@ function mkScored(overrides: Partial<ScoredTask> & { _score: number; id: number 
     id: overrides.id,
     title: overrides.title ?? `task ${overrides.id}`,
     notes: null,
-    createdAt: overrides.createdAt ?? new Date("2026-05-11T10:00:00Z"),
+    createdAt: overrides.createdAt ?? new Date("2026-05-12T10:00:00Z"),
     doneAt: null,
     startAt: null,
     categories: overrides.categories ?? ["work"],
@@ -22,128 +29,124 @@ function mkScored(overrides: Partial<ScoredTask> & { _score: number; id: number 
 
 const W = 700;
 const H = 700;
+const INNER_W = W - PADDING * 2;
+const INNER_H = H - PADDING * 2;
+const JITTER_TOL = 14;
 
-describe("packLayout", () => {
+describe("placeOnMap", () => {
   it("returns empty for empty input", () => {
-    expect(packLayout([], W, H)).toEqual([]);
+    expect(placeOnMap([], W, H)).toEqual([]);
   });
 
-  it("first item is marked as top", () => {
-    const items = packLayout(
-      [mkScored({ id: 1, _score: 0.9 }), mkScored({ id: 2, _score: 0.5 })],
-      W,
-      H
-    );
-    expect(items[0]!.isTop).toBe(true);
-    expect(items[1]!.isTop).toBe(false);
+  it("urgency=100 places at right edge (within jitter)", () => {
+    const [p] = placeOnMap([mkScored({ id: 1, _score: 0.5, urgency: 100, importance: 50 })], W, H);
+    expect(p!.x).toBeGreaterThan(PADDING + INNER_W - JITTER_TOL - 1);
+    expect(p!.x).toBeLessThan(PADDING + INNER_W + JITTER_TOL + 1);
   });
 
-  it("top task gets a meaningful size bonus over a same-score non-top", () => {
-    const topOnly = packLayout([mkScored({ id: 1, _score: 0.5 })], W, H);
-    const asNonTop = packLayout(
-      [mkScored({ id: 0, _score: 0.99 }), mkScored({ id: 1, _score: 0.5 })],
-      W,
-      H
-    );
-    const topR = topOnly[0]!.r;
-    const nonTopR = asNonTop[1]!.r;
-    expect(topR).toBeCloseTo(nonTopR * 1.25, 1);
+  it("urgency=0 places at left edge (within jitter)", () => {
+    const [p] = placeOnMap([mkScored({ id: 1, _score: 0.5, urgency: 0, importance: 50 })], W, H);
+    expect(p!.x).toBeGreaterThan(PADDING - JITTER_TOL - 1);
+    expect(p!.x).toBeLessThan(PADDING + JITTER_TOL + 1);
   });
 
-  it("multi-category bubble has larger visualR than r", () => {
-    const items = packLayout(
-      [mkScored({ id: 1, _score: 0.6, categories: ["work", "personal"] })],
-      W,
-      H
-    );
-    expect(items[0]!.visualR).toBeGreaterThan(items[0]!.r);
+  it("importance=100 places at top (low y, within jitter)", () => {
+    const [p] = placeOnMap([mkScored({ id: 1, _score: 0.5, urgency: 50, importance: 100 })], W, H);
+    expect(p!.y).toBeGreaterThan(PADDING - JITTER_TOL - 1);
+    expect(p!.y).toBeLessThan(PADDING + JITTER_TOL + 1);
   });
 
-  it("single-category bubble has visualR equal to r", () => {
-    const items = packLayout(
-      [mkScored({ id: 1, _score: 0.6, categories: ["work"] })],
-      W,
-      H
-    );
-    expect(items[0]!.visualR).toBe(items[0]!.r);
+  it("importance=0 places at bottom (high y, within jitter)", () => {
+    const [p] = placeOnMap([mkScored({ id: 1, _score: 0.5, urgency: 50, importance: 0 })], W, H);
+    expect(p!.y).toBeGreaterThan(PADDING + INNER_H - JITTER_TOL - 1);
+    expect(p!.y).toBeLessThan(PADDING + INNER_H + JITTER_TOL + 1);
   });
 
-  it("higher score → larger r", () => {
-    // Non-top to isolate the score effect from the top bonus.
-    const items = packLayout(
+  it("null urgency uses default 30", () => {
+    const [p] = placeOnMap([mkScored({ id: 1, _score: 0.5, urgency: null, importance: 50 })], W, H);
+    const expected = PADDING + (30 / 100) * INNER_W;
+    expect(p!.x).toBeGreaterThan(expected - JITTER_TOL - 1);
+    expect(p!.x).toBeLessThan(expected + JITTER_TOL + 1);
+  });
+
+  it("null importance uses default 40", () => {
+    const [p] = placeOnMap([mkScored({ id: 1, _score: 0.5, urgency: 50, importance: null })], W, H);
+    const expected = PADDING + ((100 - 40) / 100) * INNER_H;
+    expect(p!.y).toBeGreaterThan(expected - JITTER_TOL - 1);
+    expect(p!.y).toBeLessThan(expected + JITTER_TOL + 1);
+  });
+
+  it("first scored task has isTop=true", () => {
+    const placements = placeOnMap(
       [
-        mkScored({ id: 0, _score: 1.0 }), // top
         mkScored({ id: 1, _score: 0.9 }),
-        mkScored({ id: 2, _score: 0.3 }),
+        mkScored({ id: 2, _score: 0.5 }),
       ],
       W,
       H
     );
-    expect(items[1]!.r).toBeGreaterThan(items[2]!.r);
+    expect(placements[0]!.isTop).toBe(true);
+    expect(placements[1]!.isTop).toBe(false);
   });
 
-  it("packed bubbles do not overlap within the viewport", () => {
-    const tasks: ScoredTask[] = Array.from({ length: 8 }).map((_, i) =>
-      mkScored({ id: i, _score: 0.9 - i * 0.1 })
+  it("primaryCat is the first category", () => {
+    const [p] = placeOnMap(
+      [mkScored({ id: 1, _score: 0.5, categories: ["personal", "work", "health"] })],
+      W,
+      H
     );
-    const items = packLayout(tasks, W, H);
-    for (let i = 0; i < items.length; i++) {
-      for (let j = i + 1; j < items.length; j++) {
-        const a = items[i]!;
-        const b = items[j]!;
-        const dist = Math.hypot(a.x - b.x, a.y - b.y);
-        // Bubbles are packed with their visualR (plus a small padding); no
-        // pair should be closer than the sum of their radii.
-        expect(dist).toBeGreaterThanOrEqual(a.visualR + b.visualR);
-      }
-    }
+    expect(p!.primaryCat).toBe("personal");
+    expect(p!.cats).toEqual(["personal", "work", "health"]);
   });
 
   it("is deterministic — same input produces same positions", () => {
-    const tasks: ScoredTask[] = [
-      mkScored({ id: 1, _score: 0.9 }),
-      mkScored({ id: 2, _score: 0.7 }),
-      mkScored({ id: 3, _score: 0.5 }),
+    const tasks = [
+      mkScored({ id: 1, _score: 0.9, urgency: 70, importance: 80 }),
+      mkScored({ id: 2, _score: 0.7, urgency: 30, importance: 60 }),
     ];
-    const a = packLayout(tasks, W, H);
-    const b = packLayout(tasks, W, H);
+    const a = placeOnMap(tasks, W, H);
+    const b = placeOnMap(tasks, W, H);
     for (let i = 0; i < a.length; i++) {
       expect(a[i]!.x).toBe(b[i]!.x);
       expect(a[i]!.y).toBe(b[i]!.y);
     }
   });
-});
 
-describe("lobePositions", () => {
-  it("returns one lobe per category", () => {
-    const items = packLayout(
+  it("two tasks at identical (urgency, importance) get different positions via jitter", () => {
+    const a = placeOnMap(
       [
-        mkScored({
-          id: 1,
-          _score: 0.7,
-          categories: ["work", "personal", "health"],
-        }),
+        mkScored({ id: 1, _score: 0.5, urgency: 50, importance: 50 }),
+        mkScored({ id: 2, _score: 0.4, urgency: 50, importance: 50 }),
       ],
       W,
       H
     );
-    const lobes = lobePositions(items[0]!);
-    expect(lobes).toHaveLength(3);
-    expect(lobes.map((l) => l.cat)).toEqual(["work", "personal", "health"]);
+    expect(a[0]!.x !== a[1]!.x || a[0]!.y !== a[1]!.y).toBe(true);
+  });
+});
+
+describe("radiusFromEstTime", () => {
+  it("null falls back to default (30 min)", () => {
+    expect(radiusFromEstTime(null)).toBeGreaterThan(MIN_R);
+    expect(radiusFromEstTime(null)).toBeLessThan(MAX_R);
   });
 
-  it("lobes are positioned around the bubble center", () => {
-    const items = packLayout(
-      [mkScored({ id: 1, _score: 0.7, categories: ["work", "personal"] })],
-      W,
-      H
-    );
-    const item = items[0]!;
-    const lobes = lobePositions(item);
-    const offset = item.r * 0.42;
-    for (const lobe of lobes) {
-      const dist = Math.hypot(lobe.x - item.x, lobe.y - item.y);
-      expect(dist).toBeCloseTo(offset, 5);
-    }
+  it("clamps very small values to MIN_R", () => {
+    expect(radiusFromEstTime(0)).toBeGreaterThanOrEqual(MIN_R);
+  });
+
+  it("clamps very large values to MAX_R", () => {
+    expect(radiusFromEstTime(10_000)).toBe(MAX_R);
+  });
+
+  it("longer task → larger bubble", () => {
+    expect(radiusFromEstTime(120)).toBeGreaterThan(radiusFromEstTime(15));
+  });
+
+  it("size grows sub-linearly (sqrt curve, not linear)", () => {
+    // 4x time should produce ~2x radius increment over the floor — not 4x.
+    const small = radiusFromEstTime(15);
+    const large = radiusFromEstTime(60);
+    expect(large - MIN_R).toBeLessThan((small - MIN_R) * 4);
   });
 });

@@ -1,126 +1,84 @@
 import type { Task } from "@/db/schema";
 import type { Category } from "@/features/tasks/categories";
-
-export type LayoutItem = {
-  task: Task;
-  cats: Category[];
-  isTop: boolean;
-  r: number; // base radius (color circle for single-cat)
-  visualR: number; // outermost extent for ring + packing
-  x: number;
-  y: number;
-};
-
-const TOP_BONUS = 1.25;
-const MULTI_CAT_VISUAL_BONUS = 1.2;
-const TOP_RING_PAD = 7;
-const NEIGHBOR_PAD = 2;
-const EDGE_INSET = 6;
+import { DEFAULTS } from "@/features/tasks/scorer";
 
 export type ScoredTask = Task & { _score: number };
 
-/**
- * Compute base radius from the deterministic score (already 0..1).
- * Pow exponent < 1 compresses the high end; we want a meaningful spread.
- */
-function baseRadius(score: number): number {
-  const clamped = Math.max(0, Math.min(1, score));
-  return 12 + Math.pow(clamped, 1.6) * 110;
-}
+export type Placement = {
+  task: ScoredTask;
+  primaryCat: Category;
+  cats: Category[];
+  isTop: boolean;
+  x: number;
+  y: number;
+  r: number;
+};
 
-function makeItem(task: ScoredTask, isTop: boolean): Omit<LayoutItem, "x" | "y"> {
-  const cats = task.categories as Category[];
-  const r = baseRadius(task._score) * (isTop ? TOP_BONUS : 1);
-  const visualR = cats.length > 1 ? r * MULTI_CAT_VISUAL_BONUS : r;
-  return { task, cats, isTop, r, visualR };
-}
+export const PADDING = 56; // room for corner quadrant labels
+export const MIN_R = 8;
+export const MAX_R = 32;
+const JITTER_AMPLITUDE = 14;
 
 /**
- * Deterministic spiral pack: largest first, walk outward from center,
- * find a non-overlapping spot. Pure function — same input → same layout.
+ * Eisenhower-style placement: x maps urgency 0..100, y maps importance 0..100
+ * (inverted so high importance is at the top of the SVG). Tasks at identical
+ * coords get a small deterministic jitter (seeded by task id) so they don't
+ * perfectly overlap. Bubble size encodes est_time_min — effort, not priority,
+ * so it doesn't duplicate position.
  */
-export function packLayout(
+export function placeOnMap(
   scored: ScoredTask[],
   width: number,
   height: number
-): LayoutItem[] {
+): Placement[] {
   if (scored.length === 0) return [];
 
-  // Caller supplies tasks in score-desc order; first one is the top.
-  const items = scored.map((t, i) => makeItem(t, i === 0));
+  const innerW = Math.max(1, width - PADDING * 2);
+  const innerH = Math.max(1, height - PADDING * 2);
 
-  // Pack radius accounts for ring padding around the top task.
-  const inputs = items.map((it) => ({
-    ref: it,
-    r: it.visualR + (it.isTop ? TOP_RING_PAD : NEIGHBOR_PAD),
-  }));
+  return scored.map((task, i) => {
+    const u = task.urgency ?? DEFAULTS.urgency;
+    const imp = task.importance ?? DEFAULTS.importance;
 
-  const placed: { ref: (typeof items)[number]; r: number; x: number; y: number }[] = [];
-  const cx = width / 2;
-  const cy = height / 2;
-  const sorted = [...inputs].sort((a, b) => b.r - a.r);
+    const baseX = PADDING + (u / 100) * innerW;
+    const baseY = PADDING + ((100 - imp) / 100) * innerH;
 
-  for (const item of sorted) {
-    if (placed.length === 0) {
-      placed.push({ ...item, x: cx, y: cy });
-      continue;
-    }
+    // Deterministic jitter — tiny offset based on task id so coincident
+    // (urgency, importance) tasks don't sit on top of each other.
+    const jx = jitter(task.id, 1) * JITTER_AMPLITUDE;
+    const jy = jitter(task.id, 7) * JITTER_AMPLITUDE;
 
-    let ok = false;
-    for (let radius = item.r + 6; radius < Math.max(width, height) && !ok; radius += 3) {
-      const steps = Math.max(16, Math.floor(radius * 0.7));
-      for (let i = 0; i < steps && !ok; i++) {
-        const ang = (i / steps) * Math.PI * 2 + radius * 0.13;
-        const x = cx + Math.cos(ang) * radius;
-        const y = cy + Math.sin(ang) * radius;
+    const cats = task.categories as Category[];
+    const primaryCat = cats[0] ?? ("other" as Category);
 
-        if (
-          x - item.r < EDGE_INSET ||
-          x + item.r > width - EDGE_INSET ||
-          y - item.r < EDGE_INSET ||
-          y + item.r > height - EDGE_INSET
-        ) {
-          continue;
-        }
-
-        const overlaps = placed.some(
-          (p) => Math.hypot(p.x - x, p.y - y) < p.r + item.r + 4
-        );
-        if (!overlaps) {
-          placed.push({ ...item, x, y });
-          ok = true;
-        }
-      }
-    }
-    if (!ok) {
-      // Fallback: stack at center (only happens if viewport is too small)
-      placed.push({ ...item, x: cx, y: cy });
-    }
-  }
-
-  // Map placements back to LayoutItems with positions.
-  return items.map((it) => {
-    const p = placed.find((p) => p.ref === it)!;
-    return { ...it, x: p.x, y: p.y };
+    return {
+      task,
+      primaryCat,
+      cats,
+      isTop: i === 0,
+      x: baseX + jx,
+      y: baseY + jy,
+      r: radiusFromEstTime(task.estTimeMin),
+    };
   });
 }
 
-export type LobePosition = { cat: Category; x: number; y: number; r: number };
+/**
+ * Hash a task id to a stable [-1, 1] value. Different `salt` produces an
+ * independent sequence (used to get jx and jy from the same id).
+ */
+function jitter(id: number, salt: number): number {
+  // Simple integer hash; output fits in a small range and is deterministic.
+  const x = Math.sin(id * 9301 + salt * 49297) * 43758.5453;
+  return (x - Math.floor(x)) * 2 - 1;
+}
 
 /**
- * For a multi-category bubble: compute lobe centers (one per category),
- * radiating from the bubble center, evenly spaced.
+ * Map est_time_min to a bubble radius. sqrt curve so a 3-hour task isn't 6x
+ * a 30-min task — it's about 2.5x. Clamped to [MIN_R, MAX_R].
  */
-export function lobePositions(item: LayoutItem): LobePosition[] {
-  const lobeR = item.r * 0.78;
-  const offset = item.r * 0.42;
-  return item.cats.map((cat, i) => {
-    const ang = (i / item.cats.length) * Math.PI * 2 - Math.PI / 2;
-    return {
-      cat,
-      x: item.x + Math.cos(ang) * offset,
-      y: item.y + Math.sin(ang) * offset,
-      r: lobeR,
-    };
-  });
+export function radiusFromEstTime(min: number | null): number {
+  const m = min ?? 30;
+  const r = MIN_R + Math.sqrt(Math.max(1, m)) * 1.4;
+  return Math.max(MIN_R, Math.min(MAX_R, r));
 }
