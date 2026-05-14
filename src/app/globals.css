@@ -659,3 +659,69 @@ main.view-list .list-pane {
   font-size: 13px;
   outline: none;
 }
+
+/* Sprint 5: streaming explain card */
+.explain-trigger {
+  background: transparent;
+  color: var(--text-faint);
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-family: inherit;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.explain-trigger:hover {
+  background: var(--surface);
+  color: var(--text);
+  border-style: solid;
+  border-color: var(--border-strong);
+}
+.explain-card {
+  margin-top: 10px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+.explain-text {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-wrap;
+  min-height: 1.55em;
+}
+.explain-cursor {
+  display: inline-block;
+  margin-left: 2px;
+  color: var(--accent);
+  animation: explain-blink 1s steps(2, start) infinite;
+}
+@keyframes explain-blink {
+  to { visibility: hidden; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .explain-cursor { animation: none; }
+}
+.explain-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+.explain-close {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-faint);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.explain-close:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}

@@ -12,6 +12,7 @@ import {
   updateTaskTitle,
 } from "./actions";
 import { TagPicker } from "./TagPicker";
+import { ExplainStream } from "@/features/explain/ExplainStream";
 
 const NOTES_DEBOUNCE_MS = 600;
 const FOCUS_VALUES = ["low", "medium", "high"] as const;
@@ -246,6 +247,16 @@ export function DetailPanel({
           </dd>
         </dl>
       </div>
+
+      {task.doneAt === null && (
+        <div className="field-block">
+          <ExplainStream
+            key={task.id}
+            request={{ kind: "task", taskId: task.id }}
+            buttonLabel="Ask AI about this task"
+          />
+        </div>
+      )}
     </aside>
   );
 }

@@ -8,6 +8,7 @@ import { AddTaskBar } from "./AddTaskBar";
 import { TaskRow } from "./TaskRow";
 import { Header, readStoredView, type ViewMode } from "./Header";
 import { DetailPanel } from "./DetailPanel";
+import { ExplainStream } from "@/features/explain/ExplainStream";
 
 export function AppShell({
   scoredOpen,
@@ -47,6 +48,14 @@ export function AppShell({
                 ? "no open tasks"
                 : `${scoredOpen.length} open · ranked`}
             </p>
+            {scoredOpen.length > 0 && (
+              <div style={{ marginBottom: 14 }}>
+                <ExplainStream
+                  request={{ kind: "why" }}
+                  buttonLabel="Why this order?"
+                />
+              </div>
+            )}
             {scoredOpen.length === 0 ? (
               <p className="empty">Add a task above to get started.</p>
             ) : (
