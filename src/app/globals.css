@@ -236,6 +236,7 @@ main.view-list .list-pane {
   padding: 12px 14px;
   margin-bottom: 8px;
   position: relative;
+  cursor: pointer;
   transition: box-shadow 0.12s, opacity 0.2s;
 }
 .task:hover {
