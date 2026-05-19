@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LiveClock } from "./LiveClock";
 
 export type ViewMode = "list" | "constellation" | "split";
 export type ThemeMode = "system" | "light" | "dark";
@@ -50,6 +51,7 @@ export function Header({
         priority-post
         <span className="dim">v1</span>
       </h1>
+      <LiveClock />
       <div className="toolbar">
         <div className="view-toggle">
           <button
