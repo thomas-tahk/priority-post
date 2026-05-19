@@ -54,3 +54,6 @@ postgres-data/
 # local sqlite (in case)
 *.sqlite
 *.db
+
+# local Claude Code agent state (worktrees, settings, transcripts)
+.claude/
