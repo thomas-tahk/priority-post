@@ -9,14 +9,22 @@ constellation (packed bubbles, color = category, size = score). Dark mode suppor
 ## Stack (locked — don't substitute without asking)
 
 - Next.js 16 (App Router) + TypeScript + Tailwind 4 + shadcn/ui
-- Postgres in Docker (`docker-compose.yml` at repo root) for dev. Phase 2: Neon.
+- Postgres in Docker (`docker-compose.yml` at repo root) for dev. Production: Neon (us-east-2).
 - Drizzle ORM. Standard SQL only — **no Postgres-only features (jsonb queries, FTS) until phase 3.**
   Keeps the DB swappable.
 - Anthropic SDK, server-side only. Never expose API key to client.
   - **Haiku 4.5 (`claude-haiku-4-5-20251001`)** for task triage (high-frequency, simple classification)
   - **Sonnet 4.6 (`claude-sonnet-4-6`)** for "Why this order?" and "Ask AI" prose
   - Prompt caching on system prompt + active task list
-- pnpm. Auth.js + magic link is phase 2; v1 is no-auth local-only.
+- pnpm.
+- **Auth: HTTP basic auth via `src/proxy.ts`** (single `APP_PASSWORD` env var). Single-user app, browser handles credential storage. Full Auth.js v5 + Resend magic-link implementation is on the unmerged `phase-2-prod` branch — revive only if multi-user becomes a requirement.
+
+## Deployment
+
+- **Production:** https://priority-post.vercel.app (Vercel, region `iad1`)
+- **DB:** Neon Postgres, project `priority-post`, region `aws-us-east-2`
+- **Env vars in Vercel:** `DATABASE_URL` (Neon pooled), `ANTHROPIC_API_KEY`, `APP_PASSWORD`
+- Pushes to `main` auto-deploy to production.
 
 ## Architecture rule
 
