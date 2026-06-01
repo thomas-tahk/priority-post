@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>priority-post — goals rail exploration</title>
+<style>
+  :root {
+    --bg: #fafaf8;
+    --surface: #ffffff;
+    --surface-2: #f4f3ee;
+    --border: #e7e5e0;
+    --border-strong: #d8d6d0;
+    --text: #1a1a1a;
+    --text-dim: #6b6963;
+    --text-faint: #a8a59c;
+    --accent: #1a1a1a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 1px 8px rgba(0,0,0,0.03);
+    --shadow-lg: 0 4px 14px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+
+    --cat-work:         #2563eb;
+    --cat-personal:     #9333ea;
+    --cat-health:       #16a34a;
+    --cat-learning:     #ea580c;
+    --cat-errands:      #0891b2;
+    --cat-side_project: #db2777;
+    --cat-other:        #64748b;
+
+    --rail-w: 240px;
+  }
+  [data-theme="dark"] {
+    --bg: #0f0f11;
+    --surface: #1a1a1d;
+    --surface-2: #16161a;
+    --border: #2a2a30;
+    --border-strong: #3a3a42;
+    --text: #f0efe9;
+    --text-dim: #a3a299;
+    --text-faint: #6b6963;
+    --accent: #f0efe9;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 1px 8px rgba(0,0,0,0.3);
+    --shadow-lg: 0 6px 18px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.3);
+
+    --cat-work:         #3b82f6;
+    --cat-personal:     #a855f7;
+    --cat-health:       #22c55e;
+    --cat-learning:     #f97316;
+    --cat-errands:      #06b6d4;
+    --cat-side_project: #ec4899;
+    --cat-other:        #94a3b8;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+    transition: background 0.18s, color 0.18s;
+  }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky; top: 0; z-index: 10;
+  }
+  h1 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+  h1 .dim { color: var(--text-faint); font-weight: 400; margin-left: 8px; font-size: 12px; }
+  .toolbar { display: flex; gap: 10px; align-items: center; }
+  .btn {
+    background: var(--surface); color: var(--text); border: 1px solid var(--border);
+    padding: 6px 12px; border-radius: 8px; font-size: 12px;
+    cursor: pointer; font-family: inherit; font-weight: 500;
+  }
+  .btn:hover { box-shadow: var(--shadow); }
+  .btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .btn.ghost { background: transparent; border-color: transparent; color: var(--text-dim); }
+  .btn.ghost:hover { background: var(--bg); color: var(--text); box-shadow: none; }
+
+  main {
+    display: grid;
+    grid-template-columns: var(--rail-w) 1fr;
+    height: calc(100vh - 65px);
+  }
+
+  /* === LEFT RAIL: GOALS === */
+  .rail {
+    border-right: 1px solid var(--border);
+    background: var(--surface-2);
+    overflow-y: auto;
+    padding: 14px 10px 14px 14px;
+    display: flex; flex-direction: column;
+  }
+  .rail-section-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-faint); margin: 6px 6px 6px; font-weight: 600;
+  }
+  .rail-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 7px;
+    cursor: pointer;
+    color: var(--text-dim);
+    margin-bottom: 1px;
+    font-size: 13px;
+    position: relative;
+  }
+  .rail-item:hover { background: var(--bg); color: var(--text); }
+  .rail-item.active { background: var(--surface); color: var(--text); font-weight: 500; box-shadow: var(--shadow); }
+  .rail-item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rail-item .count {
+    font-size: 11px; color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+  }
+  .rail-item.active .count { color: var(--text-dim); }
+  .rail-item .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .rail-item .glyph {
+    width: 16px; height: 16px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--text-faint); font-size: 13px;
+  }
+  .rail-item.active .glyph { color: var(--text); }
+
+  .rail-divider { height: 1px; background: var(--border); margin: 10px 4px; }
+
+  .rail-add {
+    margin-top: auto; padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .rail-add button {
+    width: 100%; text-align: left;
+    background: transparent; border: 1px dashed var(--border-strong);
+    color: var(--text-dim); cursor: pointer;
+    padding: 8px 10px; border-radius: 8px;
+    font-family: inherit; font-size: 12px;
+  }
+  .rail-add button:hover { color: var(--text); background: var(--surface); border-color: var(--text-dim); border-style: solid; }
+
+  /* === MAIN: TASKS === */
+  .main-pane {
+    overflow-y: auto;
+    padding: 22px 28px 40px;
+  }
+
+  .context-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 6px; gap: 16px;
+  }
+  .context-header h2 {
+    margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.015em;
+  }
+  .context-header .meta {
+    font-size: 12px; color: var(--text-faint); margin-top: 4px;
+  }
+  .context-header .actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+  .ai-suggest {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 6px 12px; border-radius: 8px;
+    color: var(--text); font-size: 12px; cursor: pointer; font-family: inherit;
+    font-weight: 500;
+  }
+  .ai-suggest:hover { box-shadow: var(--shadow); }
+  .ai-suggest .sparkle { color: hsl(45, 95%, 50%); font-size: 12px; }
+  [data-theme="dark"] .ai-suggest .sparkle { color: hsl(48, 95%, 60%); }
+
+  .goal-description {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin: 14px 0 22px;
+    font-size: 13px; line-height: 1.6; color: var(--text-dim);
+  }
+  .goal-description em {
+    color: var(--text-faint); font-style: italic;
+    display: block; margin-top: 6px; font-size: 11px;
+  }
+
+  .add-bar {
+    display: flex; gap: 8px; align-items: center;
+    margin-bottom: 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px 6px 4px 14px;
+  }
+  .add-bar input {
+    flex: 1; border: none; outline: none; font-size: 14px; font-family: inherit;
+    background: transparent; padding: 9px 0; color: var(--text);
+  }
+  .add-bar input::placeholder { color: var(--text-faint); }
+
+  .section-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-faint); margin: 8px 0 10px 2px; font-weight: 600;
+  }
+
+  .task {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    position: relative;
+    transition: box-shadow 0.12s, opacity 0.2s;
+  }
+  .task:hover { box-shadow: var(--shadow); }
+  .task.top {
+    padding: 18px 20px; margin-bottom: 18px;
+    box-shadow: var(--shadow-lg);
+    border-color: var(--border-strong);
+  }
+  .task.top .title { font-size: 16px; font-weight: 600; }
+  .task.done { opacity: 0.45; }
+  .task.done .title { text-decoration: line-through; }
+
+  .task .title-row { display: flex; align-items: flex-start; gap: 10px; }
+  .task .checkbox {
+    width: 18px; height: 18px;
+    border: 1.5px solid var(--text-faint);
+    border-radius: 5px; flex-shrink: 0; margin-top: 2px;
+  }
+  .task.done .checkbox { background: var(--text-dim); border-color: var(--text-dim); }
+  .task .title { font-size: 14px; font-weight: 500; flex: 1; }
+
+  .task .meta {
+    display: flex; flex-wrap: wrap; gap: 6px 8px;
+    margin-top: 8px; margin-left: 28px;
+    font-size: 12px; color: var(--text-dim); align-items: center;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 999px;
+    background: var(--bg); font-size: 11px; border: 1px solid var(--border);
+  }
+  .pill.cat { color: white; border: none; font-weight: 500; }
+  .pill.cat[data-cat="work"]         { background: var(--cat-work); }
+  .pill.cat[data-cat="personal"]     { background: var(--cat-personal); }
+  .pill.cat[data-cat="health"]       { background: var(--cat-health); }
+  .pill.cat[data-cat="learning"]     { background: var(--cat-learning); }
+  .pill.cat[data-cat="errands"]      { background: var(--cat-errands); }
+  .pill.cat[data-cat="side_project"] { background: var(--cat-side_project); }
+  .pill.cat[data-cat="other"]        { background: var(--cat-other); }
+  .sparkle { color: hsl(45, 95%, 50%); font-size: 10px; }
+  [data-theme="dark"] .sparkle { color: hsl(48, 95%, 60%); }
+
+  /* AI suggestion preview row */
+  .ai-suggestions {
+    margin-top: 18px;
+    background: linear-gradient(180deg, var(--surface) 0%, var(--surface) 100%);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px 12px;
+  }
+  .ai-suggestions .head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .ai-suggestions .head .lbl {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text-dim); font-weight: 500;
+  }
+  .ai-suggestions .head .lbl .sparkle { font-size: 12px; }
+  .ai-suggestions .head .actions { display: flex; gap: 6px; }
+  .suggestion-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .suggestion-row:hover { background: var(--bg); }
+  .suggestion-row .plus {
+    width: 18px; height: 18px; border: 1.5px dashed var(--text-faint);
+    border-radius: 5px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--text-faint); font-size: 12px;
+  }
+  .suggestion-row:hover .plus { border-color: var(--text-dim); border-style: solid; color: var(--text); }
+  .suggestion-row .name { flex: 1; }
+  .suggestion-row .hint { font-size: 11px; color: var(--text-faint); }
+
+  .empty-state {
+    text-align: center; padding: 60px 20px;
+    color: var(--text-faint); font-size: 13px;
+  }
+  .empty-state .big { font-size: 32px; margin-bottom: 8px; }
+
+  /* Theme toggle (top right) */
+  .theme-toggle {
+    background: transparent; border: 1px solid var(--border);
+    padding: 6px 10px; border-radius: 8px;
+    color: var(--text-dim); cursor: pointer; font-size: 12px;
+    font-family: inherit;
+  }
+  .theme-toggle:hover { color: var(--text); }
+</style>
+</head>
+<body>
+<header>
+  <h1>priority-post <span class="dim">goals rail — design exploration</span></h1>
+  <div class="toolbar">
+    <button class="theme-toggle" id="themeBtn">🌙 dark</button>
+  </div>
+</header>
+
+<main>
+  <!-- LEFT RAIL -->
+  <aside class="rail">
+    <div class="rail-section-label">Views</div>
+    <div class="rail-item">
+      <span class="glyph">≡</span>
+      <span class="name">All tasks</span>
+      <span class="count">23</span>
+    </div>
+    <div class="rail-item">
+      <span class="glyph">⊞</span>
+      <span class="name">Priority map</span>
+    </div>
+    <div class="rail-item">
+      <span class="glyph">○</span>
+      <span class="name">Inbox</span>
+      <span class="count">4</span>
+    </div>
+
+    <div class="rail-divider"></div>
+
+    <div class="rail-section-label">Goals</div>
+    <div class="rail-item active">
+      <span class="dot" style="background: var(--cat-side_project)"></span>
+      <span class="name">Ship priority-post v3</span>
+      <span class="count">7</span>
+    </div>
+    <div class="rail-item">
+      <span class="dot" style="background: var(--cat-learning)"></span>
+      <span class="name">Learn Postgres internals</span>
+      <span class="count">3</span>
+    </div>
+    <div class="rail-item">
+      <span class="dot" style="background: var(--cat-health)"></span>
+      <span class="name">Run a half marathon</span>
+      <span class="count">5</span>
+    </div>
+    <div class="rail-item">
+      <span class="dot" style="background: var(--cat-personal)"></span>
+      <span class="name">Plan move to Boston</span>
+      <span class="count">4</span>
+    </div>
+
+    <div class="rail-add">
+      <button>+ new goal</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <section class="main-pane">
+    <div class="context-header">
+      <div>
+        <h2>Ship priority-post v3</h2>
+        <div class="meta">7 tasks · 2 done · started 3 weeks ago</div>
+      </div>
+      <div class="actions">
+        <button class="ai-suggest" id="aiBtn"><span class="sparkle">✨</span> suggest sub-tasks</button>
+        <button class="btn ghost">⋯</button>
+      </div>
+    </div>
+
+    <div class="goal-description">
+      Get the app to a point I'd be comfortable showing it to someone — goal hierarchy, faster mobile capture, push notifications working.
+      <em>Click to edit · last updated 2 days ago</em>
+    </div>
+
+    <div class="add-bar">
+      <input type="text" placeholder="add a task to this goal…" />
+      <span style="color: var(--text-faint); font-size: 11px; padding-right: 8px;">⏎ to save</span>
+    </div>
+
+    <div class="section-label">Top priority</div>
+    <div class="task top">
+      <div class="title-row">
+        <div class="checkbox"></div>
+        <div class="title">Sketch goal hierarchy + decide on schema (Goal entity vs. parent_task_id)</div>
+      </div>
+      <div class="meta">
+        <span class="pill cat" data-cat="side_project">side_project</span>
+        <span class="pill">urgency 78 <span class="sparkle">✨</span></span>
+        <span class="pill">importance 90 <span class="sparkle">✨</span></span>
+        <span class="pill">~45min <span class="sparkle">✨</span></span>
+        <span class="pill">deep focus <span class="sparkle">✨</span></span>
+      </div>
+    </div>
+
+    <div class="section-label">Up next</div>
+    <div class="task">
+      <div class="title-row">
+        <div class="checkbox"></div>
+        <div class="title">Drizzle migration: goals table + tasks.goal_id FK</div>
+      </div>
+      <div class="meta">
+        <span class="pill cat" data-cat="side_project">side_project</span>
+        <span class="pill">urgency 60 <span class="sparkle">✨</span></span>
+        <span class="pill">importance 80 <span class="sparkle">✨</span></span>
+        <span class="pill">~30min <span class="sparkle">✨</span></span>
+      </div>
+    </div>
+
+    <div class="task">
+      <div class="title-row">
+        <div class="checkbox"></div>
+        <div class="title">Wire left rail UI — render goals, click-to-filter</div>
+      </div>
+      <div class="meta">
+        <span class="pill cat" data-cat="side_project">side_project</span>
+        <span class="pill">urgency 55 <span class="sparkle">✨</span></span>
+        <span class="pill">importance 70 <span class="sparkle">✨</span></span>
+      </div>
+    </div>
+
+    <div class="task">
+      <div class="title-row">
+        <div class="checkbox"></div>
+        <div class="title">Add "suggest sub-tasks" action — wire Sonnet 4.6 streaming for proposals</div>
+      </div>
+      <div class="meta">
+        <span class="pill cat" data-cat="side_project">side_project</span>
+        <span class="pill">urgency 45 <span class="sparkle">✨</span></span>
+        <span class="pill">importance 75 <span class="sparkle">✨</span></span>
+      </div>
+    </div>
+
+    <div class="task">
+      <div class="title-row">
+        <div class="checkbox"></div>
+        <div class="title">iOS Shortcut for one-tap capture from phone</div>
+      </div>
+      <div class="meta">
+        <span class="pill cat" data-cat="side_project">side_project</span>
+        <span class="pill">urgency 30 <span class="sparkle">✨</span></span>
+        <span class="pill">importance 60 <span class="sparkle">✨</span></span>
+      </div>
+    </div>
+
+    <div class="section-label" style="margin-top: 22px;">Done</div>
+    <div class="task done">
+      <div class="title-row">
+        <div class="checkbox"></div>
+        <div class="title">Rotate Neon password</div>
+      </div>
+    </div>
+    <div class="task done">
+      <div class="title-row">
+        <div class="checkbox"></div>
+        <div class="title">Deploy phase 2 (lite) to Vercel with basic-auth</div>
+      </div>
+    </div>
+
+    <!-- AI suggestions surface (appears after clicking ✨ suggest sub-tasks) -->
+    <div class="ai-suggestions">
+      <div class="head">
+        <div class="lbl"><span class="sparkle">✨</span> Claude proposes (Sonnet 4.6)</div>
+        <div class="actions">
+          <button class="btn ghost">add all</button>
+          <button class="btn ghost">dismiss</button>
+        </div>
+      </div>
+      <div class="suggestion-row">
+        <span class="plus">+</span>
+        <span class="name">Write 3-paragraph "about" page so visitors get oriented</span>
+        <span class="hint">~20min · personal</span>
+      </div>
+      <div class="suggestion-row">
+        <span class="plus">+</span>
+        <span class="name">Smoke-test the app on iPhone Safari (add-to-home-screen)</span>
+        <span class="hint">~15min · errands</span>
+      </div>
+      <div class="suggestion-row">
+        <span class="plus">+</span>
+        <span class="name">Record 60s screencast for share link</span>
+        <span class="hint">~30min · side_project</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  // Theme toggle (matches v1 behavior)
+  const root = document.documentElement;
+  const btn = document.getElementById('themeBtn');
+  const stored = localStorage.getItem('theme');
+  const prefersDark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const initial = stored ?? (prefersDark ? 'dark' : 'light');
+  if (initial === 'dark') root.setAttribute('data-theme', 'dark');
+  function syncBtn() {
+    const isDark = root.getAttribute('data-theme') === 'dark';
+    btn.textContent = isDark ? '☀ light' : '🌙 dark';
+  }
+  syncBtn();
+  btn.onclick = () => {
+    const isDark = root.getAttribute('data-theme') === 'dark';
+    if (isDark) root.removeAttribute('data-theme'); else root.setAttribute('data-theme', 'dark');
+    localStorage.setItem('theme', isDark ? 'light' : 'dark');
+    syncBtn();
+  };
+
+  // Rail click → active state (purely visual demo)
+  document.querySelectorAll('.rail-item').forEach(el => {
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.rail-item').forEach(x => x.classList.remove('active'));
+      el.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
