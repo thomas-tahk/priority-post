@@ -353,6 +353,13 @@
     document.getElementById('panel').classList.add('open');
   }
   function closePanel(){ document.getElementById('panel').classList.remove('open'); }
+  // click outside the panel (and not on a task / goal picker) closes it — matches the live app
+  document.addEventListener('mousedown', (e) => {
+    const panel = document.getElementById('panel');
+    if (!panel.classList.contains('open')) return;
+    if (panel.contains(e.target) || e.target.closest('.task') || e.target.closest('#goalPop')) return;
+    closePanel();
+  });
 
   // goal picker popover (in panel)
   function toggleGoalPop(e){
