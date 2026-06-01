@@ -698,6 +698,13 @@ main.view-list .list-pane {
   color: var(--text);
   outline: none;
 }
+.notes-editor-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--text-faint);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
 .notes-editor-content > * + * {
   margin-top: 0.5em;
 }

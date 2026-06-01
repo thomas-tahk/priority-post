@@ -6,6 +6,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { TextStyle, Color, FontFamily } from "@tiptap/extension-text-style";
 import { TaskList } from "@tiptap/extension-task-list";
 import { TaskItem } from "@tiptap/extension-task-item";
+import { Placeholder } from "@tiptap/extension-placeholder";
 import { updateTaskNotes } from "./actions";
 
 const SAVE_DEBOUNCE_MS = 600;
@@ -143,6 +144,7 @@ export function NotesEditor({
       FontFamily,
       TaskList,
       TaskItem.configure({ nested: true }),
+      Placeholder.configure({ placeholder: "Add notes, links, or context…" }),
     ],
     content: initialContent || "",
     editorProps: {

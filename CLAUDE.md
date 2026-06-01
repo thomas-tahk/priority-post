@@ -103,8 +103,10 @@ Locked decisions:
     overlap. Defaults for null AI fields: urgency=30, importance=40 (matches scorer DEFAULTS).
 - **Tag editing**: clicking `+ tag` shows a popover of colored chips immediately. No native `<select>`.
   All edits auto-save.
-- **Detail panel**: notes textarea is the prominent area. **No numerical score breakdown** — the
-  "Why this order?" prose covers it (Sprint 5). Click outside the panel to close.
+- **Detail panel**: the rich-text notes editor (TipTap) is the prominent area — supports bold/italic/
+  strike, bullet + checkbox lists, font family, and text color; stored as HTML in the `notes` column.
+  **No numerical score breakdown** — the "Why this order?" prose covers it (Sprint 5). Click outside
+  the panel to close.
 - **Field naming**: "Focus" (not "Energy"); "Est. time" for unscheduled, "Duration" for scheduled.
 - Dark mode toggle in header, defaults to `prefers-color-scheme`.
 
