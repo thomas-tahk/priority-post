@@ -711,14 +711,24 @@ main.view-list .list-pane {
 .notes-editor-content p {
   margin: 0;
 }
-.notes-editor-content ul,
-.notes-editor-content ol {
-  padding-left: 1.2em;
+/* Tailwind's preflight resets list markers; restore them for normal lists. */
+.notes-editor-content ul:not([data-type="taskList"]) {
+  list-style-type: disc;
+  padding-left: 1.4em;
   margin: 0;
+}
+.notes-editor-content ol {
+  list-style-type: decimal;
+  padding-left: 1.4em;
+  margin: 0;
+}
+.notes-editor-content li::marker {
+  color: var(--text-dim);
 }
 .notes-editor-content ul[data-type="taskList"] {
   list-style: none;
   padding-left: 0;
+  margin: 0;
 }
 .notes-editor-content ul[data-type="taskList"] li {
   display: flex;
@@ -726,8 +736,20 @@ main.view-list .list-pane {
   gap: 8px;
 }
 .notes-editor-content ul[data-type="taskList"] li > label {
-  margin-top: 2px;
+  margin-top: 1px;
   user-select: none;
+  flex-shrink: 0;
+}
+/* Keep only the native checkbox; hide TipTap's empty presentational span. */
+.notes-editor-content ul[data-type="taskList"] li > label input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.notes-editor-content ul[data-type="taskList"] li > label span {
+  display: none;
 }
 .notes-editor-content ul[data-type="taskList"] li > div {
   flex: 1;
