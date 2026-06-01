@@ -4,6 +4,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Task } from "@/db/schema";
 import { WEIGHTS, score, timeOfDay } from "@/features/tasks/scorer";
+import { notesToPlainText } from "@/lib/notes";
 
 const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 1500;
@@ -37,7 +38,7 @@ function serializeTasks(tasks: Task[], now: Date): string {
       focus: t.focus,
       score: Number(score(t, now).toFixed(3)),
       start_at: t.startAt?.toISOString() ?? null,
-      notes: t.notes,
+      notes: notesToPlainText(t.notes),
     }))
   );
 }

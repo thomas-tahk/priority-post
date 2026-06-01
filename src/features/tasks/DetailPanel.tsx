@@ -8,13 +8,12 @@ import {
   removeTaskCategory,
   updateTaskEstTime,
   updateTaskFocus,
-  updateTaskNotes,
   updateTaskTitle,
 } from "./actions";
 import { TagPicker } from "./TagPicker";
+import { NotesEditor } from "./NotesEditor";
 import { ExplainStream } from "@/features/explain/ExplainStream";
 
-const NOTES_DEBOUNCE_MS = 600;
 const FOCUS_VALUES = ["low", "medium", "high"] as const;
 
 function isPinned(task: Task, field: string): boolean {
@@ -56,10 +55,8 @@ export function DetailPanel({
   const [, startTransition] = useTransition();
   const [picking, setPicking] = useState(false);
   const [title, setTitle] = useState(task?.title ?? "");
-  const [notes, setNotes] = useState(task?.notes ?? "");
   const [estTime, setEstTime] = useState(formatEstTime(task?.estTimeMin ?? null));
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const notesTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Note: local edit state (title/notes/estTime) is initialized once on mount.
   // The panel is remounted via a `key={task.id}` in AppShell when a different
@@ -98,16 +95,6 @@ export function DetailPanel({
     const trimmed = title.trim();
     if (!trimmed || !task || trimmed === task.title) return;
     startTransition(() => updateTaskTitle(task.id, trimmed));
-  }
-
-  function scheduleNotesSave(value: string) {
-    setNotes(value);
-    if (notesTimer.current) clearTimeout(notesTimer.current);
-    if (!task) return;
-    const id = task.id;
-    notesTimer.current = setTimeout(() => {
-      startTransition(() => updateTaskNotes(id, value));
-    }, NOTES_DEBOUNCE_MS);
   }
 
   function commitEstTime() {
@@ -190,16 +177,7 @@ export function DetailPanel({
 
       <div className="field-block">
         <label className="field-label">Notes</label>
-        <textarea
-          className="notes-textarea"
-          placeholder="Add notes, links, or context…"
-          value={notes}
-          onChange={(e) => scheduleNotesSave(e.target.value)}
-          onBlur={() => {
-            if (notesTimer.current) clearTimeout(notesTimer.current);
-            startTransition(() => updateTaskNotes(task.id, notes));
-          }}
-        />
+        <NotesEditor taskId={task.id} initialContent={task.notes ?? ""} />
       </div>
 
       <div className="field-block">

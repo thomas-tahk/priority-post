@@ -5,6 +5,7 @@
 // React Server Components environment and breaks tsx + vitest.
 import Anthropic from "@anthropic-ai/sdk";
 import { CATEGORIES, type Category } from "@/features/tasks/categories";
+import { notesToPlainText } from "@/lib/notes";
 
 const FOCUS_VALUES = ["low", "medium", "high"] as const;
 export type Focus = (typeof FOCUS_VALUES)[number];
@@ -112,7 +113,8 @@ export async function triageTask(
   }
 
   const client = deps.client ?? new Anthropic({ apiKey });
-  const userContent = notes ? `Title: ${title}\nNotes: ${notes}` : title;
+  const plainNotes = notesToPlainText(notes);
+  const userContent = plainNotes ? `Title: ${title}\nNotes: ${plainNotes}` : title;
 
   try {
     const response = await client.messages.create({
