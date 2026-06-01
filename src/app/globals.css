@@ -870,3 +870,11 @@ main.view-list .list-pane {
 .rail-add { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border); }
 .rail-add button { width: 100%; text-align: left; background: transparent; border: 1px dashed var(--border-strong); color: var(--text-dim); cursor: pointer; padding: 8px 10px; border-radius: 8px; font-family: inherit; font-size: 12px; }
 .rail-add button:hover { color: var(--text); background: var(--surface); border-style: solid; }
+
+.pane { padding: 22px 28px 60px; position: relative; }
+.ctx-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.ctx-head h2 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.015em; }
+.ctx-head .meta { font-size: 12px; color: var(--text-faint); margin-top: 4px; }
+.goal-desc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 13px 15px; margin: 14px 0 20px; font-size: 13px; line-height: 1.6; color: var(--text-dim); cursor: text; }
+.goal-desc .dim { color: var(--text-faint); }
+.goal-desc-edit { width: 100%; margin: 14px 0 20px; border: 1px solid var(--border-strong); border-radius: 10px; padding: 13px 15px; font: inherit; font-size: 13px; background: var(--bg); color: var(--text); outline: none; min-height: 70px; resize: vertical; }
