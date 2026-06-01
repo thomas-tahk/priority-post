@@ -61,13 +61,10 @@ export function DetailPanel({
   const panelRef = useRef<HTMLDivElement | null>(null);
   const notesTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reset local state when a different task is opened.
-  useEffect(() => {
-    setTitle(task?.title ?? "");
-    setNotes(task?.notes ?? "");
-    setEstTime(formatEstTime(task?.estTimeMin ?? null));
-    setPicking(false);
-  }, [task?.id, task?.title, task?.notes, task?.estTimeMin]);
+  // Note: local edit state (title/notes/estTime) is initialized once on mount.
+  // The panel is remounted via a `key={task.id}` in AppShell when a different
+  // task is opened, so we deliberately do NOT re-sync from the prop here —
+  // doing so would let a same-task revalidation clobber in-progress edits.
 
   // Click-outside-closes.
   useEffect(() => {

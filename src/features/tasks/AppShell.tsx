@@ -93,7 +93,7 @@ export function AppShell({
           />
         )}
       </main>
-      <DetailPanel task={selected} onClose={() => setSelected(null)} />
+      <DetailPanel key={selected?.id ?? "none"} task={selected} onClose={() => setSelected(null)} />
     </>
   );
 }
