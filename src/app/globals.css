@@ -853,3 +853,20 @@ main.view-list .list-pane {
   border-color: var(--border-strong);
   color: var(--text);
 }
+
+.app-body { display: flex; height: calc(100vh - 61px); }
+.app-content { flex: 1; min-width: 0; overflow-y: auto; }
+.rail { width: 240px; flex-shrink: 0; border-right: 1px solid var(--border); background: var(--surface-2); overflow-y: auto; padding: 14px 10px; display: flex; flex-direction: column; }
+.rail-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-faint); margin: 6px 8px; font-weight: 600; }
+.rail-item { display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: 7px; cursor: pointer; color: var(--text-dim); margin-bottom: 1px; font-size: 13px; width: 100%; text-align: left; background: transparent; border: none; font-family: inherit; }
+.rail-item:hover { background: var(--bg); color: var(--text); }
+.rail-item.active { background: var(--surface); color: var(--text); font-weight: 500; box-shadow: var(--shadow); }
+.rail-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail-item .count { font-size: 11px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.rail-item .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.rail-item .glyph { width: 16px; text-align: center; color: var(--text-faint); }
+.rail-item.active .glyph { color: var(--text); }
+.rail-divider { height: 1px; background: var(--border); margin: 10px 6px; }
+.rail-add { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border); }
+.rail-add button { width: 100%; text-align: left; background: transparent; border: 1px dashed var(--border-strong); color: var(--text-dim); cursor: pointer; padding: 8px 10px; border-radius: 8px; font-family: inherit; font-size: 12px; }
+.rail-add button:hover { color: var(--text); background: var(--surface); border-style: solid; }
