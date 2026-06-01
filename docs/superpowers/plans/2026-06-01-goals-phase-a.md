@@ -1,0 +1,1439 @@
+# Goals — Phase A Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Add a goals layer — create/edit/delete goals, assign tasks to them (contextually at creation, editable later), and navigate by goal in a left rail — without changing scoring or triage.
+
+**Architecture:** New `goals` table + nullable `tasks.goal_id` FK. `page.tsx` loads goals; `AppShell` holds `selectedGoalId` and switches the main pane between the existing Overview (list/map/split) and a per-goal ranked list, filtering client-side. Risky logic (per-goal counts, delete-disposition) lives in pure, unit-tested functions; thin server actions do the DB writes.
+
+**Tech Stack:** Next.js 16 App Router, Drizzle ORM + Postgres, TypeScript, Vitest. Spec: `docs/superpowers/specs/2026-06-01-goals-phase-a-design.md`. Visual source of truth: `mockups/goals-phase-a.html`.
+
+**Testing note:** Pure functions get full TDD. DB actions and React components have no test harness in this repo (consistent with current practice) — verify them with `pnpm typecheck`, `pnpm build`, and the manual checklist in Task 14.
+
+---
+
+### Task 1: Schema — goals table + tasks.goal_id
+
+**Files:**
+- Modify: `src/db/schema.ts`
+- Create (generated): `drizzle/<timestamp>_*.sql`
+
+- [ ] **Step 1: Add the goals table and goal_id FK**
+
+Replace the contents of `src/db/schema.ts` with:
+
+```ts
+import { pgTable, serial, text, timestamp, integer, jsonb } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+
+export const goals = pgTable("goals", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  color: text("color").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const tasks = pgTable("tasks", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  doneAt: timestamp("done_at", { withTimezone: true }),
+  startAt: timestamp("start_at", { withTimezone: true }),
+  categories: text("categories").array().notNull().default(sql`ARRAY['other']::text[]`),
+  urgency: integer("urgency"),
+  importance: integer("importance"),
+  estTimeMin: integer("est_time_min"),
+  focus: text("focus"),
+  pinnedFields: jsonb("pinned_fields").notNull().default(sql`'[]'::jsonb`),
+  goalId: integer("goal_id").references(() => goals.id, { onDelete: "set null" }),
+});
+
+export type Task = typeof tasks.$inferSelect;
+export type NewTask = typeof tasks.$inferInsert;
+export type Goal = typeof goals.$inferSelect;
+export type NewGoal = typeof goals.$inferInsert;
+```
+
+- [ ] **Step 2: Generate the migration**
+
+Run: `pnpm db:generate`
+Expected: a new file under `drizzle/` whose SQL creates `goals` and runs `ALTER TABLE "tasks" ADD COLUMN "goal_id" integer` plus a FK constraint with `ON DELETE set null`. Open it and confirm.
+
+- [ ] **Step 3: Apply to the dev database**
+
+Run: `docker compose up -d` then `pnpm db:migrate`
+Expected: migration applies with no error. (Dev Postgres is on port 5433; `DATABASE_URL` in `.env.local` points at it.)
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/db/schema.ts drizzle/
+git commit -m "feat(goals): goals table + tasks.goal_id FK (ON DELETE SET NULL)"
+```
+
+---
+
+### Task 2: Pure logic — per-goal task counts
+
+**Files:**
+- Create: `src/features/goals/counts.ts`
+- Test: `src/features/goals/counts.test.ts`
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+import { describe, it, expect } from "vitest";
+import { openCountByGoal, goalStats } from "./counts";
+
+describe("openCountByGoal", () => {
+  it("counts open tasks per goal id, ignoring null goals", () => {
+    const tasks = [
+      { goalId: 1, doneAt: null },
+      { goalId: 1, doneAt: null },
+      { goalId: 2, doneAt: null },
+      { goalId: null, doneAt: null },
+    ];
+    expect(openCountByGoal(tasks)).toEqual({ 1: 2, 2: 1 });
+  });
+
+  it("returns an empty object when there are no goal-assigned tasks", () => {
+    expect(openCountByGoal([{ goalId: null, doneAt: null }])).toEqual({});
+  });
+});
+
+describe("goalStats", () => {
+  it("returns total and done counts for a task list", () => {
+    const tasks = [
+      { doneAt: new Date() },
+      { doneAt: null },
+      { doneAt: null },
+    ];
+    expect(goalStats(tasks)).toEqual({ total: 3, done: 1 });
+  });
+
+  it("handles an empty list", () => {
+    expect(goalStats([])).toEqual({ total: 0, done: 0 });
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pnpm exec vitest run src/features/goals/counts.test.ts`
+Expected: FAIL — cannot find module `./counts`.
+
+- [ ] **Step 3: Write minimal implementation**
+
+```ts
+// Pure helpers over task rows. The callers pass only the fields used here, so
+// these stay decoupled from the full Task type and trivially testable.
+
+export function openCountByGoal(
+  tasks: { goalId: number | null; doneAt: Date | null }[]
+): Record<number, number> {
+  const counts: Record<number, number> = {};
+  for (const t of tasks) {
+    if (t.goalId === null || t.doneAt !== null) continue;
+    counts[t.goalId] = (counts[t.goalId] ?? 0) + 1;
+  }
+  return counts;
+}
+
+export function goalStats(
+  tasks: { doneAt: Date | null }[]
+): { total: number; done: number } {
+  let done = 0;
+  for (const t of tasks) if (t.doneAt !== null) done++;
+  return { total: tasks.length, done };
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `pnpm exec vitest run src/features/goals/counts.test.ts`
+Expected: PASS (4 tests).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/features/goals/counts.ts src/features/goals/counts.test.ts
+git commit -m "feat(goals): pure per-goal count helpers"
+```
+
+---
+
+### Task 3: Pure logic — delete-disposition validation
+
+**Files:**
+- Create: `src/features/goals/disposition.ts`
+- Test: `src/features/goals/disposition.test.ts`
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+import { describe, it, expect } from "vitest";
+import { validateDisposition, type Disposition } from "./disposition";
+
+describe("validateDisposition", () => {
+  it("accepts unassign", () => {
+    const d: Disposition = { kind: "unassign" };
+    expect(validateDisposition(d, 5)).toEqual(d);
+  });
+
+  it("accepts delete", () => {
+    const d: Disposition = { kind: "delete" };
+    expect(validateDisposition(d, 5)).toEqual(d);
+  });
+
+  it("accepts reassign to a different goal", () => {
+    const d: Disposition = { kind: "reassign", targetGoalId: 7 };
+    expect(validateDisposition(d, 5)).toEqual(d);
+  });
+
+  it("rejects reassign to the goal being deleted", () => {
+    const d: Disposition = { kind: "reassign", targetGoalId: 5 };
+    expect(() => validateDisposition(d, 5)).toThrow(/itself/);
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pnpm exec vitest run src/features/goals/disposition.test.ts`
+Expected: FAIL — cannot find module `./disposition`.
+
+- [ ] **Step 3: Write minimal implementation**
+
+```ts
+// What happens to a goal's tasks when the goal is deleted.
+export type Disposition =
+  | { kind: "unassign" }                       // tasks -> no goal (Overview)
+  | { kind: "reassign"; targetGoalId: number } // tasks -> another goal
+  | { kind: "delete" };                        // tasks deleted too
+
+export function validateDisposition(d: Disposition, deletingGoalId: number): Disposition {
+  if (d.kind === "reassign" && d.targetGoalId === deletingGoalId) {
+    throw new Error("Cannot reassign a goal's tasks to itself.");
+  }
+  return d;
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `pnpm exec vitest run src/features/goals/disposition.test.ts`
+Expected: PASS (4 tests).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/features/goals/disposition.ts src/features/goals/disposition.test.ts
+git commit -m "feat(goals): delete-disposition type + validation"
+```
+
+---
+
+### Task 4: Pure logic — "started X ago" formatting
+
+**Files:**
+- Create: `src/features/goals/dates.ts`
+- Test: `src/features/goals/dates.test.ts`
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+import { describe, it, expect } from "vitest";
+import { startedAgo } from "./dates";
+
+const now = new Date("2026-06-01T12:00:00Z");
+
+describe("startedAgo", () => {
+  it("returns 'today' for the same day", () => {
+    expect(startedAgo(new Date("2026-06-01T08:00:00Z"), now)).toBe("today");
+  });
+  it("returns days for under a week", () => {
+    expect(startedAgo(new Date("2026-05-29T12:00:00Z"), now)).toBe("3 days ago");
+  });
+  it("returns weeks for under a month", () => {
+    expect(startedAgo(new Date("2026-05-11T12:00:00Z"), now)).toBe("3 weeks ago");
+  });
+  it("returns months beyond that", () => {
+    expect(startedAgo(new Date("2026-03-01T12:00:00Z"), now)).toBe("3 months ago");
+  });
+  it("singularizes 1", () => {
+    expect(startedAgo(new Date("2026-05-31T12:00:00Z"), now)).toBe("1 day ago");
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pnpm exec vitest run src/features/goals/dates.test.ts`
+Expected: FAIL — cannot find module `./dates`.
+
+- [ ] **Step 3: Write minimal implementation**
+
+```ts
+const DAY = 86_400_000;
+
+export function startedAgo(from: Date, now: Date): string {
+  const days = Math.floor((now.getTime() - from.getTime()) / DAY);
+  if (days <= 0) return "today";
+  if (days < 7) return plural(days, "day");
+  if (days < 30) return plural(Math.floor(days / 7), "week");
+  return plural(Math.floor(days / 30), "month");
+}
+
+function plural(n: number, unit: string): string {
+  return `${n} ${unit}${n === 1 ? "" : "s"} ago`;
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `pnpm exec vitest run src/features/goals/dates.test.ts`
+Expected: PASS (5 tests).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/features/goals/dates.ts src/features/goals/dates.test.ts
+git commit -m "feat(goals): startedAgo relative-date helper"
+```
+
+---
+
+### Task 5: Goal queries
+
+**Files:**
+- Create: `src/features/goals/queries.ts`
+
+- [ ] **Step 1: Implement listGoals**
+
+```ts
+import { db } from "@/db";
+import { goals, type Goal } from "@/db/schema";
+import { asc } from "drizzle-orm";
+
+export async function listGoals(): Promise<Goal[]> {
+  return db.select().from(goals).orderBy(asc(goals.createdAt));
+}
+```
+
+- [ ] **Step 2: Typecheck**
+
+Run: `pnpm typecheck`
+Expected: no errors.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add src/features/goals/queries.ts
+git commit -m "feat(goals): listGoals query"
+```
+
+---
+
+### Task 6: Goal server actions + createTask goalId
+
+**Files:**
+- Create: `src/features/goals/actions.ts`
+- Modify: `src/features/tasks/actions.ts` (createTask signature)
+
+- [ ] **Step 1: Add goalId to createTask**
+
+In `src/features/tasks/actions.ts`, change the `createTask` signature and insert:
+
+```ts
+export async function createTask(input: {
+  title: string;
+  categories?: string[];
+  goalId?: number | null;
+}) {
+  const title = input.title.trim();
+  if (!title) return;
+
+  const userPickedCategories = (input.categories ?? []).length > 0;
+  const initialCategories = ensureAtLeastOne(input.categories ?? []);
+  const initialPinned = userPickedCategories ? ["categories"] : [];
+
+  const [inserted] = await db
+    .insert(tasks)
+    .values({
+      title,
+      categories: initialCategories,
+      pinnedFields: initialPinned,
+      goalId: input.goalId ?? null,
+    })
+    .returning({ id: tasks.id });
+
+  revalidatePath("/");
+
+  after(async () => {
+    const result = await triageTask(title);
+    if (!result) return;
+    const updates: Partial<typeof tasks.$inferInsert> = {
+      urgency: result.urgency,
+      importance: result.importance,
+      estTimeMin: result.est_time_min,
+      focus: result.focus,
+    };
+    if (!userPickedCategories) updates.categories = result.categories;
+    await db.update(tasks).set(updates).where(eq(tasks.id, inserted.id));
+    revalidatePath("/");
+  });
+}
+```
+
+(Only the `input` type and the `.values({...})` object change; the rest is identical to the current function.)
+
+- [ ] **Step 2: Create the goals actions**
+
+`src/features/goals/actions.ts`:
+
+```ts
+"use server";
+
+import { db } from "@/db";
+import { goals, tasks } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { validateDisposition, type Disposition } from "./disposition";
+
+export async function createGoal(input: {
+  name: string;
+  color: string;
+  description?: string;
+}) {
+  const name = input.name.trim();
+  if (!name) return;
+  await db.insert(goals).values({
+    name,
+    color: input.color,
+    description: input.description?.trim() || null,
+  });
+  revalidatePath("/");
+}
+
+export async function updateGoal(
+  id: number,
+  patch: { name?: string; description?: string | null; color?: string }
+) {
+  const set: Partial<typeof goals.$inferInsert> = {};
+  if (patch.name !== undefined) {
+    const name = patch.name.trim();
+    if (!name) return;
+    set.name = name;
+  }
+  if (patch.description !== undefined) {
+    set.description = patch.description?.trim() || null;
+  }
+  if (patch.color !== undefined) set.color = patch.color;
+  if (Object.keys(set).length === 0) return;
+  await db.update(goals).set(set).where(eq(goals.id, id));
+  revalidatePath("/");
+}
+
+export async function assignTaskGoal(taskId: number, goalId: number | null) {
+  await db.update(tasks).set({ goalId }).where(eq(tasks.id, taskId));
+  revalidatePath("/");
+}
+
+export async function deleteGoal(id: number, disposition: Disposition) {
+  const d = validateDisposition(disposition, id);
+
+  if (d.kind === "unassign") {
+    await db.update(tasks).set({ goalId: null }).where(eq(tasks.goalId, id));
+  } else if (d.kind === "reassign") {
+    await db.update(tasks).set({ goalId: d.targetGoalId }).where(eq(tasks.goalId, id));
+  } else {
+    await db.delete(tasks).where(eq(tasks.goalId, id));
+  }
+
+  await db.delete(goals).where(eq(goals.id, id));
+  revalidatePath("/");
+}
+```
+
+- [ ] **Step 3: Typecheck**
+
+Run: `pnpm typecheck`
+Expected: no errors.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/features/goals/actions.ts src/features/tasks/actions.ts
+git commit -m "feat(goals): goal CRUD + assignTaskGoal actions; createTask accepts goalId"
+```
+
+---
+
+### Task 7: page.tsx — load goals
+
+**Files:**
+- Modify: `src/app/page.tsx`
+
+- [ ] **Step 1: Fetch goals and pass them to AppShell**
+
+```tsx
+import { listTasks } from "@/features/tasks/queries";
+import { listGoals } from "@/features/goals/queries";
+import { score, sortByScore } from "@/features/tasks/scorer";
+import { AppShell } from "@/features/tasks/AppShell";
+
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const [tasks, goals] = await Promise.all([listTasks(), listGoals()]);
+  const now = new Date();
+
+  const open = tasks.filter((t) => t.doneAt === null);
+  const sortedOpen = sortByScore(open, now);
+  const scoredOpen = sortedOpen.map((t) => ({ ...t, _score: score(t, now) }));
+  const done = tasks.filter((t) => t.doneAt !== null);
+
+  return <AppShell scoredOpen={scoredOpen} done={done} goals={goals} />;
+}
+```
+
+- [ ] **Step 2: Typecheck (expected to fail until AppShell accepts `goals`)**
+
+Run: `pnpm typecheck`
+Expected: error — `AppShell` has no `goals` prop yet. This is fixed in Task 9. Proceed.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add src/app/page.tsx
+git commit -m "feat(goals): load goals in the page server component"
+```
+
+---
+
+### Task 8: GoalRail component
+
+**Files:**
+- Create: `src/features/goals/GoalRail.tsx`
+- Modify: `src/app/globals.css` (rail styles)
+
+- [ ] **Step 1: Implement GoalRail**
+
+```tsx
+"use client";
+
+import type { Goal } from "@/db/schema";
+import { CAT_COLOR_VAR } from "./colors";
+
+export function GoalRail({
+  goals,
+  overviewCount,
+  countsByGoal,
+  selectedGoalId,
+  onSelect,
+  onNewGoal,
+}: {
+  goals: Goal[];
+  overviewCount: number;
+  countsByGoal: Record<number, number>;
+  selectedGoalId: number | null;
+  onSelect: (id: number | null) => void;
+  onNewGoal: () => void;
+}) {
+  return (
+    <aside className="rail">
+      <div className="rail-label">View</div>
+      <button
+        type="button"
+        className={`rail-item${selectedGoalId === null ? " active" : ""}`}
+        onClick={() => onSelect(null)}
+      >
+        <span className="glyph">≡</span>
+        <span className="name">Overview</span>
+        <span className="count">{overviewCount}</span>
+      </button>
+
+      <div className="rail-divider" />
+      <div className="rail-label">Goals</div>
+      {goals.map((g) => (
+        <button
+          type="button"
+          key={g.id}
+          className={`rail-item${selectedGoalId === g.id ? " active" : ""}`}
+          onClick={() => onSelect(g.id)}
+        >
+          <span className="dot" style={{ background: CAT_COLOR_VAR(g.color) }} />
+          <span className="name">{g.name}</span>
+          <span className="count">{countsByGoal[g.id] ?? 0}</span>
+        </button>
+      ))}
+
+      <div className="rail-add">
+        <button type="button" onClick={onNewGoal}>+ new goal</button>
+      </div>
+    </aside>
+  );
+}
+```
+
+- [ ] **Step 2: Create the color helper**
+
+`src/features/goals/colors.ts`:
+
+```ts
+// Goal dots reuse the locked category color CSS vars. `color` is a category key.
+export const GOAL_COLORS = [
+  "work", "personal", "health", "learning", "errands", "side_project", "other",
+] as const;
+
+export function CAT_COLOR_VAR(key: string): string {
+  return `var(--cat-${key})`;
+}
+```
+
+- [ ] **Step 3: Add rail CSS**
+
+Append the `.rail`, `.rail-label`, `.rail-item`, `.rail-divider`, `.rail-add` rules from `mockups/goals-phase-a.html` to `src/app/globals.css`, plus the layout wrapper:
+
+```css
+.app-body { display: flex; height: calc(100vh - 61px); }
+.app-content { flex: 1; min-width: 0; overflow-y: auto; }
+.rail { width: 240px; flex-shrink: 0; border-right: 1px solid var(--border); background: var(--surface-2); overflow-y: auto; padding: 14px 10px; display: flex; flex-direction: column; }
+.rail-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-faint); margin: 6px 8px; font-weight: 600; }
+.rail-item { display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: 7px; cursor: pointer; color: var(--text-dim); margin-bottom: 1px; font-size: 13px; width: 100%; text-align: left; background: transparent; border: none; font-family: inherit; }
+.rail-item:hover { background: var(--bg); color: var(--text); }
+.rail-item.active { background: var(--surface); color: var(--text); font-weight: 500; box-shadow: var(--shadow); }
+.rail-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail-item .count { font-size: 11px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.rail-item .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.rail-item .glyph { width: 16px; text-align: center; color: var(--text-faint); }
+.rail-item.active .glyph { color: var(--text); }
+.rail-divider { height: 1px; background: var(--border); margin: 10px 6px; }
+.rail-add { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border); }
+.rail-add button { width: 100%; text-align: left; background: transparent; border: 1px dashed var(--border-strong); color: var(--text-dim); cursor: pointer; padding: 8px 10px; border-radius: 8px; font-family: inherit; font-size: 12px; }
+.rail-add button:hover { color: var(--text); background: var(--surface); border-style: solid; }
+```
+
+- [ ] **Step 4: Typecheck**
+
+Run: `pnpm typecheck`
+Expected: `page.tsx` error from Task 7 persists; no new errors in goals files.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/features/goals/GoalRail.tsx src/features/goals/colors.ts src/app/globals.css
+git commit -m "feat(goals): GoalRail component + rail layout styles"
+```
+
+---
+
+### Task 9: AppShell integration
+
+**Files:**
+- Modify: `src/features/tasks/AppShell.tsx`
+- Modify: `src/features/tasks/Header.tsx` (optional view-toggle hide)
+- Modify: `src/features/tasks/AddTaskBar.tsx` (accept goalId)
+
+- [ ] **Step 1: Let AddTaskBar carry a goalId + custom copy**
+
+```tsx
+"use client";
+
+import { useState, useTransition } from "react";
+import { createTask } from "./actions";
+
+export function AddTaskBar({
+  goalId = null,
+  placeholder = "Add a task… (anything from a quick errand to a big goal)",
+  hint = "⏎ to add",
+}: {
+  goalId?: number | null;
+  placeholder?: string;
+  hint?: string;
+}) {
+  const [value, setValue] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  function submit() {
+    const title = value.trim();
+    if (!title) return;
+    startTransition(async () => {
+      await createTask({ title, goalId });
+      setValue("");
+    });
+  }
+
+  return (
+    <div className="add-bar">
+      <input
+        type="text"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+        disabled={isPending}
+      />
+      <span className="hint">{hint}</span>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 2: Add a view-toggle hide flag to Header**
+
+In `src/features/tasks/Header.tsx`, add `showViewToggle = true` to the props and wrap the `.view-toggle` div so it only renders when true:
+
+```tsx
+export function Header({
+  view,
+  onViewChange,
+  showViewToggle = true,
+}: {
+  view: ViewMode;
+  onViewChange: (v: ViewMode) => void;
+  showViewToggle?: boolean;
+}) {
+```
+
+Then wrap the existing `<div className="view-toggle">…</div>` as `{showViewToggle && (<div className="view-toggle">…</div>)}`.
+
+- [ ] **Step 3: Rewrite AppShell to host the rail + goal page**
+
+```tsx
+"use client";
+
+import { useEffect, useState } from "react";
+import type { Task, Goal } from "@/db/schema";
+import { Constellation } from "@/features/constellation/Constellation";
+import type { ScoredTask } from "@/features/constellation/layout";
+import { AddTaskBar } from "./AddTaskBar";
+import { TaskRow } from "./TaskRow";
+import { Header, readStoredView, type ViewMode } from "./Header";
+import { DetailPanel } from "./DetailPanel";
+import { ExplainStream } from "@/features/explain/ExplainStream";
+import { GoalRail } from "@/features/goals/GoalRail";
+import { GoalPage } from "@/features/goals/GoalPage";
+import { NewGoalForm } from "@/features/goals/NewGoalForm";
+import { openCountByGoal } from "@/features/goals/counts";
+
+export function AppShell({
+  scoredOpen,
+  done,
+  goals,
+}: {
+  scoredOpen: ScoredTask[];
+  done: Task[];
+  goals: Goal[];
+}) {
+  const [view, setView] = useState<ViewMode>("list");
+  const [selected, setSelected] = useState<Task | null>(null);
+  const [selectedGoalId, setSelectedGoalId] = useState<number | null>(null);
+  const [newGoalOpen, setNewGoalOpen] = useState(false);
+
+  useEffect(() => { setView(readStoredView()); }, []);
+
+  // Keep the selected task in sync after server-action revalidation.
+  useEffect(() => {
+    if (!selected) return;
+    const fresh =
+      scoredOpen.find((t) => t.id === selected.id) ?? done.find((t) => t.id === selected.id);
+    if (fresh && fresh !== selected) setSelected(fresh);
+    if (!fresh) setSelected(null);
+  }, [scoredOpen, done, selected]);
+
+  // If the selected goal was deleted, fall back to Overview.
+  useEffect(() => {
+    if (selectedGoalId !== null && !goals.some((g) => g.id === selectedGoalId)) {
+      setSelectedGoalId(null);
+    }
+  }, [goals, selectedGoalId]);
+
+  const countsByGoal = openCountByGoal(scoredOpen);
+  const activeGoal = goals.find((g) => g.id === selectedGoalId) ?? null;
+
+  const showList = view === "list" || view === "split";
+  const showConstellation = view === "constellation" || view === "split";
+
+  return (
+    <>
+      <Header view={view} onViewChange={setView} showViewToggle={selectedGoalId === null} />
+      <div className="app-body">
+        <GoalRail
+          goals={goals}
+          overviewCount={scoredOpen.length}
+          countsByGoal={countsByGoal}
+          selectedGoalId={selectedGoalId}
+          onSelect={setSelectedGoalId}
+          onNewGoal={() => setNewGoalOpen(true)}
+        />
+        <div className="app-content">
+          {activeGoal ? (
+            <GoalPage
+              goal={activeGoal}
+              open={scoredOpen.filter((t) => t.goalId === activeGoal.id)}
+              done={done.filter((t) => t.goalId === activeGoal.id)}
+              goals={goals}
+              onSelectTask={setSelected}
+              onDeleted={() => setSelectedGoalId(null)}
+            />
+          ) : (
+            <main className={`view-${view}`}>
+              {showList && (
+                <section className="list-pane">
+                  <AddTaskBar />
+                  <p className="section-label">
+                    {scoredOpen.length === 0 ? "no open tasks" : `${scoredOpen.length} open · ranked`}
+                  </p>
+                  {scoredOpen.length > 0 && (
+                    <div style={{ marginBottom: 14 }}>
+                      <ExplainStream request={{ kind: "why" }} buttonLabel="Why this order?" />
+                    </div>
+                  )}
+                  {scoredOpen.length === 0 ? (
+                    <p className="empty">Add a task above to get started.</p>
+                  ) : (
+                    scoredOpen.map((t, i) => (
+                      <div
+                        key={t.id}
+                        data-detail-opener
+                        onClick={(e) => {
+                          const tag = (e.target as HTMLElement).tagName;
+                          if (["INPUT", "BUTTON", "TEXTAREA", "SELECT"].includes(tag)) return;
+                          setSelected(t);
+                        }}
+                      >
+                        <TaskRow task={t} isTop={i === 0} />
+                      </div>
+                    ))
+                  )}
+                  {done.length > 0 && (
+                    <>
+                      <p className="section-label" style={{ marginTop: 28 }}>done · {done.length}</p>
+                      {done.map((t) => (<TaskRow key={t.id} task={t} />))}
+                    </>
+                  )}
+                </section>
+              )}
+              {showConstellation && (
+                <Constellation scored={scoredOpen} onSelect={(t) => setSelected(t)} />
+              )}
+            </main>
+          )}
+        </div>
+      </div>
+      <DetailPanel key={selected?.id ?? "none"} task={selected} goals={goals} onClose={() => setSelected(null)} />
+      {newGoalOpen && <NewGoalForm onClose={() => setNewGoalOpen(false)} />}
+    </>
+  );
+}
+```
+
+- [ ] **Step 4: Typecheck (will fail until GoalPage, NewGoalForm, and DetailPanel `goals` exist)**
+
+Run: `pnpm typecheck`
+Expected: errors referencing `GoalPage`, `NewGoalForm`, and DetailPanel's `goals` prop — all created in Tasks 10–13. Proceed.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/features/tasks/AppShell.tsx src/features/tasks/Header.tsx src/features/tasks/AddTaskBar.tsx
+git commit -m "feat(goals): rail + goal-page wiring in AppShell"
+```
+
+---
+
+### Task 10: GoalPage component
+
+**Files:**
+- Create: `src/features/goals/GoalPage.tsx`
+- Modify: `src/app/globals.css` (goal-page styles from the mockup)
+
+- [ ] **Step 1: Implement GoalPage**
+
+```tsx
+"use client";
+
+import { useState, useTransition } from "react";
+import type { Task, Goal } from "@/db/schema";
+import type { ScoredTask } from "@/features/constellation/layout";
+import { TaskRow } from "@/features/tasks/TaskRow";
+import { AddTaskBar } from "@/features/tasks/AddTaskBar";
+import { goalStats } from "./counts";
+import { startedAgo } from "./dates";
+import { updateGoal } from "./actions";
+import { GoalSettingsMenu } from "./GoalSettingsMenu";
+import { DeleteGoalDialog } from "./DeleteGoalDialog";
+
+export function GoalPage({
+  goal,
+  open,
+  done,
+  goals,
+  onSelectTask,
+  onDeleted,
+}: {
+  goal: Goal;
+  open: ScoredTask[];
+  done: Task[];
+  goals: Goal[];
+  onSelectTask: (t: Task) => void;
+  onDeleted: () => void;
+}) {
+  const [, startTransition] = useTransition();
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [desc, setDesc] = useState(goal.description ?? "");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const stats = goalStats([...open, ...done]);
+
+  function commitDesc() {
+    setEditingDesc(false);
+    if ((goal.description ?? "") === desc.trim()) return;
+    startTransition(() => updateGoal(goal.id, { description: desc }));
+  }
+
+  return (
+    <div className="pane">
+      <div className="ctx-head">
+        <div>
+          <h2>{goal.name}</h2>
+          <div className="meta">
+            {stats.total} tasks · {stats.done} done · started {startedAgo(new Date(goal.createdAt), new Date())}
+          </div>
+        </div>
+        <GoalSettingsMenu goal={goal} onDelete={() => setDeleteOpen(true)} />
+      </div>
+
+      {editingDesc ? (
+        <textarea
+          className="goal-desc-edit"
+          autoFocus
+          value={desc}
+          onChange={(e) => setDesc(e.target.value)}
+          onBlur={commitDesc}
+          placeholder="What does done look like?"
+        />
+      ) : (
+        <div className="goal-desc" onClick={() => setEditingDesc(true)}>
+          {goal.description || <span className="dim">Add a description…</span>}
+        </div>
+      )}
+
+      <AddTaskBar goalId={goal.id} placeholder="add a task to this goal…" hint={`⏎ — assigned to ${goal.name}`} />
+
+      <p className="section-label">{open.length === 0 ? "no open tasks" : `${open.length} open · ranked`}</p>
+      {open.map((t, i) => (
+        <div
+          key={t.id}
+          data-detail-opener
+          onClick={(e) => {
+            const tag = (e.target as HTMLElement).tagName;
+            if (["INPUT", "BUTTON", "TEXTAREA", "SELECT"].includes(tag)) return;
+            onSelectTask(t);
+          }}
+        >
+          <TaskRow task={t} isTop={i === 0} />
+        </div>
+      ))}
+
+      {done.length > 0 && (
+        <>
+          <p className="section-label" style={{ marginTop: 28 }}>done · {done.length}</p>
+          {done.map((t) => (<TaskRow key={t.id} task={t} />))}
+        </>
+      )}
+
+      {deleteOpen && (
+        <DeleteGoalDialog
+          goal={goal}
+          taskCount={stats.total}
+          otherGoals={goals.filter((g) => g.id !== goal.id)}
+          onClose={() => setDeleteOpen(false)}
+          onDeleted={onDeleted}
+        />
+      )}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 2: Add goal-page CSS**
+
+Append to `src/app/globals.css` (adapt remaining detail from `mockups/goals-phase-a.html`):
+
+```css
+.pane { padding: 22px 28px 60px; position: relative; }
+.ctx-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.ctx-head h2 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.015em; }
+.ctx-head .meta { font-size: 12px; color: var(--text-faint); margin-top: 4px; }
+.goal-desc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 13px 15px; margin: 14px 0 20px; font-size: 13px; line-height: 1.6; color: var(--text-dim); cursor: text; }
+.goal-desc .dim { color: var(--text-faint); }
+.goal-desc-edit { width: 100%; margin: 14px 0 20px; border: 1px solid var(--border-strong); border-radius: 10px; padding: 13px 15px; font: inherit; font-size: 13px; background: var(--bg); color: var(--text); outline: none; min-height: 70px; resize: vertical; }
+```
+
+- [ ] **Step 3: Typecheck (still failing on GoalSettingsMenu/DeleteGoalDialog/DetailPanel)**
+
+Run: `pnpm typecheck`
+Expected: errors only for not-yet-created `GoalSettingsMenu`, `DeleteGoalDialog`, DetailPanel `goals`. Proceed.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/features/goals/GoalPage.tsx src/app/globals.css
+git commit -m "feat(goals): GoalPage with editable description + ranked tasks"
+```
+
+---
+
+### Task 11: GoalSettingsMenu + NewGoalForm
+
+**Files:**
+- Create: `src/features/goals/GoalSettingsMenu.tsx`
+- Create: `src/features/goals/NewGoalForm.tsx`
+- Modify: `src/app/globals.css` (menu + modal styles)
+
+- [ ] **Step 1: GoalSettingsMenu (rename / recolor / delete entry)**
+
+```tsx
+"use client";
+
+import { useEffect, useRef, useState, useTransition } from "react";
+import type { Goal } from "@/db/schema";
+import { updateGoal } from "./actions";
+import { GOAL_COLORS, CAT_COLOR_VAR } from "./colors";
+
+export function GoalSettingsMenu({ goal, onDelete }: { goal: Goal; onDelete: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [name, setName] = useState(goal.name);
+  const [, startTransition] = useTransition();
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function onDoc(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  function commitName() {
+    setRenaming(false);
+    if (name.trim() && name.trim() !== goal.name) {
+      startTransition(() => updateGoal(goal.id, { name }));
+    } else {
+      setName(goal.name);
+    }
+  }
+
+  return (
+    <div className="menu-wrap" ref={ref}>
+      <button type="button" className="btn ghost" style={{ fontSize: 18 }} onClick={() => setOpen((o) => !o)}>⋯</button>
+      {open && (
+        <div className="menu">
+          {renaming ? (
+            <input
+              className="menu-rename"
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={commitName}
+              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+            />
+          ) : (
+            <button type="button" onClick={() => setRenaming(true)}>Rename goal</button>
+          )}
+          <div className="menu-colors">
+            {GOAL_COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={`menu-swatch${goal.color === c ? " sel" : ""}`}
+                style={{ background: CAT_COLOR_VAR(c) }}
+                aria-label={`Color ${c}`}
+                onClick={() => startTransition(() => updateGoal(goal.id, { color: c }))}
+              />
+            ))}
+          </div>
+          <div className="sep" />
+          <button type="button" className="danger" onClick={() => { setOpen(false); onDelete(); }}>Delete goal…</button>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 2: NewGoalForm modal**
+
+```tsx
+"use client";
+
+import { useState, useTransition } from "react";
+import { createGoal } from "./actions";
+import { GOAL_COLORS, CAT_COLOR_VAR } from "./colors";
+
+export function NewGoalForm({ onClose }: { onClose: () => void }) {
+  const [name, setName] = useState("");
+  const [color, setColor] = useState<string>("side_project");
+  const [description, setDescription] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  function submit() {
+    if (!name.trim()) return;
+    startTransition(async () => {
+      await createGoal({ name, color, description });
+      onClose();
+    });
+  }
+
+  return (
+    <div className="scrim open" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal">
+        <h3>New goal</h3>
+        <p>Name it, give it a color. Description optional.</p>
+        <input type="text" autoFocus placeholder="Goal name" value={name} onChange={(e) => setName(e.target.value)} />
+        <label className="field-label">Color</label>
+        <div className="swatches">
+          {GOAL_COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`swatch${color === c ? " sel" : ""}`}
+              style={{ background: CAT_COLOR_VAR(c) }}
+              aria-label={c}
+              onClick={() => setColor(c)}
+            />
+          ))}
+        </div>
+        <textarea placeholder="What does done look like? (optional)" value={description} onChange={(e) => setDescription(e.target.value)} />
+        <div className="modal-actions">
+          <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn primary" disabled={isPending || !name.trim()} onClick={submit}>Create goal</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 3: Add menu + modal + swatch CSS**
+
+Append the `.menu-wrap`, `.menu`, `.scrim`, `.modal`, `.swatches`, `.swatch`, `.modal-actions` rules from `mockups/goals-phase-a.html` to `src/app/globals.css`, plus:
+
+```css
+.menu-rename { width: 100%; border: 1px solid var(--border); border-radius: 7px; padding: 7px 9px; font: inherit; font-size: 13px; background: var(--bg); color: var(--text); }
+.menu-colors { display: flex; gap: 5px; padding: 8px 6px; }
+.menu-swatch { width: 18px; height: 18px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+.menu-swatch.sel { border-color: var(--accent); }
+```
+
+- [ ] **Step 4: Typecheck**
+
+Run: `pnpm typecheck`
+Expected: errors only for `DeleteGoalDialog` and DetailPanel `goals`. Proceed.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/features/goals/GoalSettingsMenu.tsx src/features/goals/NewGoalForm.tsx src/app/globals.css
+git commit -m "feat(goals): goal settings menu (rename/recolor) + new-goal form"
+```
+
+---
+
+### Task 12: DeleteGoalDialog
+
+**Files:**
+- Create: `src/features/goals/DeleteGoalDialog.tsx`
+
+- [ ] **Step 1: Implement the confirm + disposition dialog**
+
+```tsx
+"use client";
+
+import { useState, useTransition } from "react";
+import type { Goal } from "@/db/schema";
+import { deleteGoal } from "./actions";
+import type { Disposition } from "./disposition";
+
+type Choice = "unassign" | "reassign" | "delete";
+
+export function DeleteGoalDialog({
+  goal,
+  taskCount,
+  otherGoals,
+  onClose,
+  onDeleted,
+}: {
+  goal: Goal;
+  taskCount: number;
+  otherGoals: Goal[];
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const [choice, setChoice] = useState<Choice>("unassign");
+  const [targetGoalId, setTargetGoalId] = useState<number | null>(otherGoals[0]?.id ?? null);
+  const [isPending, startTransition] = useTransition();
+
+  function confirm() {
+    let disposition: Disposition;
+    if (choice === "reassign") {
+      if (targetGoalId === null) return;
+      disposition = { kind: "reassign", targetGoalId };
+    } else {
+      disposition = { kind: choice };
+    }
+    startTransition(async () => {
+      await deleteGoal(goal.id, disposition);
+      onDeleted();
+      onClose();
+    });
+  }
+
+  return (
+    <div className="scrim open" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal">
+        <h3>Delete “{goal.name}”?</h3>
+        <p>This goal has <strong>{taskCount} task{taskCount === 1 ? "" : "s"}</strong>. Choose what happens to them:</p>
+        <div className="disposition">
+          <label className={`disp-opt${choice === "unassign" ? " sel" : ""}`}>
+            <input type="radio" name="disp" checked={choice === "unassign"} onChange={() => setChoice("unassign")} />
+            <span>Move them to Overview (no goal)</span>
+          </label>
+          <label className={`disp-opt${choice === "reassign" ? " sel" : ""}`} style={{ opacity: otherGoals.length ? 1 : 0.5 }}>
+            <input type="radio" name="disp" disabled={!otherGoals.length} checked={choice === "reassign"} onChange={() => setChoice("reassign")} />
+            <span>Move them to another goal</span>
+            <select
+              value={targetGoalId ?? ""}
+              disabled={!otherGoals.length || choice !== "reassign"}
+              onChange={(e) => setTargetGoalId(Number(e.target.value))}
+            >
+              {otherGoals.map((g) => (<option key={g.id} value={g.id}>{g.name}</option>))}
+            </select>
+          </label>
+          <label className={`disp-opt${choice === "delete" ? " sel" : ""}`}>
+            <input type="radio" name="disp" checked={choice === "delete"} onChange={() => setChoice("delete")} />
+            <span>Delete the tasks too</span>
+          </label>
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn danger" disabled={isPending} onClick={confirm}>Delete goal</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 2: Add disposition CSS**
+
+Append the `.disposition`, `.disp-opt`, `.btn.danger` rules from `mockups/goals-phase-a.html` to `src/app/globals.css`.
+
+- [ ] **Step 3: Typecheck**
+
+Run: `pnpm typecheck`
+Expected: error only for DetailPanel `goals` prop. Proceed.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/features/goals/DeleteGoalDialog.tsx src/app/globals.css
+git commit -m "feat(goals): delete-goal confirm dialog with task disposition"
+```
+
+---
+
+### Task 13: DetailPanel goal field (GoalPicker)
+
+**Files:**
+- Create: `src/features/goals/GoalPicker.tsx`
+- Modify: `src/features/tasks/DetailPanel.tsx`
+- Modify: `src/app/globals.css` (picker styles)
+
+- [ ] **Step 1: GoalPicker popover**
+
+```tsx
+"use client";
+
+import { useEffect, useRef, useState, useTransition } from "react";
+import type { Goal } from "@/db/schema";
+import { assignTaskGoal } from "./actions";
+import { CAT_COLOR_VAR } from "./colors";
+
+export function GoalPicker({
+  taskId,
+  goals,
+  currentGoalId,
+}: {
+  taskId: number;
+  goals: Goal[];
+  currentGoalId: number | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [, startTransition] = useTransition();
+  const ref = useRef<HTMLDivElement | null>(null);
+  const current = goals.find((g) => g.id === currentGoalId) ?? null;
+
+  useEffect(() => {
+    function onDoc(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  function pick(goalId: number | null) {
+    setOpen(false);
+    startTransition(() => assignTaskGoal(taskId, goalId));
+  }
+
+  return (
+    <div className="goal-field menu-wrap" ref={ref}>
+      <button type="button" className="goal-select" onClick={() => setOpen((o) => !o)}>
+        {current ? (
+          <>
+            <span className="dot" style={{ background: CAT_COLOR_VAR(current.color) }} />
+            <span>{current.name}</span>
+          </>
+        ) : (
+          <span className="dim">No goal</span>
+        )}
+      </button>
+      {open && (
+        <div className="pop">
+          <button type="button" onClick={() => pick(null)}>
+            <span className="dot" style={{ background: "var(--text-faint)" }} />No goal
+          </button>
+          {goals.map((g) => (
+            <button type="button" key={g.id} onClick={() => pick(g.id)}>
+              <span className="dot" style={{ background: CAT_COLOR_VAR(g.color) }} />{g.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 2: Add the Goal field to DetailPanel**
+
+In `src/features/tasks/DetailPanel.tsx`: add `Goal` to the props type and pass it through, then render the field above the Notes block.
+
+Props change:
+
+```tsx
+export function DetailPanel({
+  task,
+  goals,
+  onClose,
+}: {
+  task: Task | null;
+  goals: Goal[];
+  onClose: () => void;
+}) {
+```
+
+Add imports:
+
+```tsx
+import type { Task, Goal } from "@/db/schema";
+import { GoalPicker } from "@/features/goals/GoalPicker";
+```
+
+(Replace the existing `import type { Task } from "@/db/schema";` line.)
+
+Insert this block immediately before the Notes `field-block`:
+
+```tsx
+<div className="field-block">
+  <label className="field-label">Goal</label>
+  <GoalPicker taskId={task.id} goals={goals} currentGoalId={task.goalId} />
+</div>
+```
+
+- [ ] **Step 3: Add picker + goal-field CSS**
+
+Append the `.goal-field`, `.goal-select`, `.pop` rules from `mockups/goals-phase-a.html` to `src/app/globals.css`, plus:
+
+```css
+.goal-select .dim { color: var(--text-faint); }
+```
+
+- [ ] **Step 4: Typecheck — should now be fully clean**
+
+Run: `pnpm typecheck`
+Expected: no errors (all referenced components now exist).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/features/goals/GoalPicker.tsx src/features/tasks/DetailPanel.tsx src/app/globals.css
+git commit -m "feat(goals): detail-panel Goal field for assign-later"
+```
+
+---
+
+### Task 14: Full verification + production migration + deploy
+
+**Files:** none (verification + ops)
+
+- [ ] **Step 1: Run the full test suite**
+
+Run: `pnpm test`
+Expected: all prior tests + the new counts/disposition/dates tests PASS.
+
+- [ ] **Step 2: Typecheck + build**
+
+Run: `pnpm typecheck && pnpm build`
+Expected: both succeed.
+
+- [ ] **Step 3: Manual smoke test on dev**
+
+Run: `docker compose up -d && pnpm dev`, then in the browser verify:
+- Rail shows Overview (with count) + any goals + "+ new goal".
+- "+ new goal" → create a goal with a color; it appears in the rail.
+- Click the goal → goal page with editable title-area description + scoped add-bar; add a task → it appears here AND is tagged to the goal in Overview.
+- Add a task from Overview → no goal pill.
+- Open a task → detail panel Goal field; assign/clear a goal; the rail count updates after save.
+- Goal `⋯` → Rename, change color, and Delete goal… → dialog offers all three dispositions; test "move to Overview" and "move to another goal" and confirm task counts behave.
+- Overview view-toggle (List/Map/Split) still works; toggle is hidden inside a goal.
+- Click empty space closes the detail panel.
+
+- [ ] **Step 4: Apply the migration to production (Neon) BEFORE deploying**
+
+The live app runs `SELECT *` over `tasks`; once code expects `goal_id`, the column must exist in Neon. Vercel does **not** auto-migrate.
+
+Run (with the Neon connection string, not the dev one):
+```bash
+DATABASE_URL="<neon-connection-string>" pnpm db:migrate
+```
+Expected: the goals migration applies to Neon with no error.
+
+- [ ] **Step 5: Commit any remaining changes and deploy**
+
+```bash
+git push origin main
+```
+Expected: Vercel auto-deploys; the live app shows the rail and goals work end-to-end.
+
+- [ ] **Step 6: Update CLAUDE.md data-model section**
+
+Add `goals` table + `tasks.goal_id` to the "Data model essentials" section of `CLAUDE.md`, then commit:
+```bash
+git add CLAUDE.md
+git commit -m "docs: record goals table + goal_id in CLAUDE.md"
+```
+
+---
+
+## Notes / out of scope (Phase B)
+
+- AI "suggest sub-tasks" (Sonnet) and the goal-page sparkle button.
+- "Unassigned (N)" rail filter.
+- Goal completion/archiving; per-goal map/split; drag-to-assign.
