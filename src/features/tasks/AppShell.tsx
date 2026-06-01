@@ -67,6 +67,7 @@ export function AppShell({
         <div className="app-content">
           {activeGoal ? (
             <GoalPage
+              key={activeGoal.id}
               goal={activeGoal}
               open={scoredOpen.filter((t) => t.goalId === activeGoal.id)}
               done={done.filter((t) => t.goalId === activeGoal.id)}
