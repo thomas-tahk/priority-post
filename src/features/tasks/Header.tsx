@@ -12,9 +12,11 @@ const THEME_KEY = "pp:theme";
 export function Header({
   view,
   onViewChange,
+  showViewToggle = true,
 }: {
   view: ViewMode;
   onViewChange: (v: ViewMode) => void;
+  showViewToggle?: boolean;
 }) {
   const [theme, setTheme] = useState<ThemeMode>("system");
 
@@ -53,29 +55,31 @@ export function Header({
       </h1>
       <LiveClock />
       <div className="toolbar">
-        <div className="view-toggle">
-          <button
-            type="button"
-            className={view === "list" ? "active" : ""}
-            onClick={() => persistView("list", onViewChange)}
-          >
-            List
-          </button>
-          <button
-            type="button"
-            className={view === "constellation" ? "active" : ""}
-            onClick={() => persistView("constellation", onViewChange)}
-          >
-            Constellation
-          </button>
-          <button
-            type="button"
-            className={view === "split" ? "active" : ""}
-            onClick={() => persistView("split", onViewChange)}
-          >
-            Split
-          </button>
-        </div>
+        {showViewToggle && (
+          <div className="view-toggle">
+            <button
+              type="button"
+              className={view === "list" ? "active" : ""}
+              onClick={() => persistView("list", onViewChange)}
+            >
+              List
+            </button>
+            <button
+              type="button"
+              className={view === "constellation" ? "active" : ""}
+              onClick={() => persistView("constellation", onViewChange)}
+            >
+              Constellation
+            </button>
+            <button
+              type="button"
+              className={view === "split" ? "active" : ""}
+              onClick={() => persistView("split", onViewChange)}
+            >
+              Split
+            </button>
+          </div>
+        )}
         <button type="button" className="btn" onClick={cycleTheme} title={`theme: ${themeLabel}`}>
           {themeIcon} {themeLabel}
         </button>
