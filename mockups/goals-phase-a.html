@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>priority-post — goals phase A mockup</title>
+<style>
+  :root {
+    --bg: #fafaf8; --surface: #ffffff; --surface-2: #f4f3ee;
+    --border: #e7e5e0; --border-strong: #d8d6d0;
+    --text: #1a1a1a; --text-dim: #6b6963; --text-faint: #a8a59c;
+    --accent: #1a1a1a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 1px 8px rgba(0,0,0,0.03);
+    --shadow-lg: 0 4px 14px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+    --cat-work:#2563eb; --cat-personal:#9333ea; --cat-health:#16a34a;
+    --cat-learning:#ea580c; --cat-errands:#0891b2; --cat-side_project:#db2777; --cat-other:#64748b;
+    --rail-w: 240px; --panel-w: 360px;
+  }
+  [data-theme="dark"] {
+    --bg:#0f0f11; --surface:#1a1a1d; --surface-2:#16161a;
+    --border:#2a2a30; --border-strong:#3a3a42;
+    --text:#f0efe9; --text-dim:#a3a299; --text-faint:#6b6963; --accent:#f0efe9;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 1px 8px rgba(0,0,0,0.3);
+    --shadow-lg: 0 6px 18px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.3);
+    --cat-work:#3b82f6; --cat-personal:#a855f7; --cat-health:#22c55e;
+    --cat-learning:#f97316; --cat-errands:#06b6d4; --cat-side_project:#ec4899; --cat-other:#94a3b8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; height:100%; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;
+    background:var(--bg); color:var(--text); font-size:14px; line-height:1.5;
+  }
+  header {
+    display:flex; align-items:center; gap:16px;
+    padding:14px 24px; border-bottom:1px solid var(--border);
+    background:var(--surface); position:sticky; top:0; z-index:10;
+  }
+  h1 { margin:0; font-size:16px; font-weight:600; letter-spacing:-0.01em; }
+  h1 .dim { color:var(--text-faint); font-weight:400; margin-left:6px; font-size:11px; }
+  .clock { color:var(--text-faint); font-size:12px; font-variant-numeric:tabular-nums; }
+  .spacer { flex:1; }
+  .view-toggle { display:flex; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:2px; }
+  .view-toggle button {
+    border:none; background:transparent; color:var(--text-dim);
+    padding:5px 12px; border-radius:6px; font:inherit; font-size:12px; cursor:pointer;
+  }
+  .view-toggle button.active { background:var(--surface); color:var(--text); box-shadow:var(--shadow); font-weight:500; }
+  .btn {
+    background:var(--surface); color:var(--text); border:1px solid var(--border);
+    padding:6px 12px; border-radius:8px; font-size:12px; cursor:pointer; font:inherit; font-weight:500;
+  }
+  .btn:hover { box-shadow:var(--shadow); }
+  .btn.primary { background:var(--text); color:var(--bg); border-color:var(--text); }
+  .btn.ghost { background:transparent; border-color:transparent; color:var(--text-dim); }
+  .btn.ghost:hover { background:var(--bg); color:var(--text); }
+  .btn.danger { color:#dc2626; border-color:#dc2626; background:transparent; }
+  [data-theme="dark"] .btn.danger { color:#f87171; border-color:#f87171; }
+  .btn.danger:hover { background:#dc2626; color:#fff; }
+
+  main { display:grid; grid-template-columns:var(--rail-w) 1fr; height:calc(100vh - 61px); }
+
+  /* RAIL */
+  .rail { border-right:1px solid var(--border); background:var(--surface-2); overflow-y:auto; padding:14px 10px; display:flex; flex-direction:column; }
+  .rail-label { font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-faint); margin:6px 8px; font-weight:600; }
+  .rail-item { display:flex; align-items:center; gap:9px; padding:7px 10px; border-radius:7px; cursor:pointer; color:var(--text-dim); margin-bottom:1px; font-size:13px; }
+  .rail-item:hover { background:var(--bg); color:var(--text); }
+  .rail-item.active { background:var(--surface); color:var(--text); font-weight:500; box-shadow:var(--shadow); }
+  .rail-item .name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rail-item .count { font-size:11px; color:var(--text-faint); font-variant-numeric:tabular-nums; }
+  .rail-item .dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .rail-item .glyph { width:16px; text-align:center; color:var(--text-faint); }
+  .rail-item.active .glyph { color:var(--text); }
+  .rail-divider { height:1px; background:var(--border); margin:10px 6px; }
+  .rail-add { margin-top:auto; padding-top:10px; border-top:1px solid var(--border); }
+  .rail-add button { width:100%; text-align:left; background:transparent; border:1px dashed var(--border-strong); color:var(--text-dim); cursor:pointer; padding:8px 10px; border-radius:8px; font:inherit; font-size:12px; }
+  .rail-add button:hover { color:var(--text); background:var(--surface); border-style:solid; }
+
+  /* MAIN PANE */
+  .pane { overflow-y:auto; padding:22px 28px 60px; position:relative; }
+  .ctx-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+  .ctx-head h2 { margin:0; font-size:22px; font-weight:600; letter-spacing:-0.015em; }
+  .ctx-head .meta { font-size:12px; color:var(--text-faint); margin-top:4px; }
+  .goal-desc { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:13px 15px; margin:14px 0 20px; font-size:13px; line-height:1.6; color:var(--text-dim); }
+  .goal-desc em { color:var(--text-faint); font-style:italic; display:block; margin-top:6px; font-size:11px; }
+  .add-bar { display:flex; gap:8px; align-items:center; margin-bottom:18px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:3px 6px 3px 14px; }
+  .add-bar input { flex:1; border:none; outline:none; font-size:14px; font:inherit; background:transparent; padding:9px 0; color:var(--text); }
+  .add-bar .hint { color:var(--text-faint); font-size:11px; padding-right:8px; }
+  .section-label { font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-faint); margin:14px 0 10px 2px; font-weight:600; }
+
+  .task { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:8px; cursor:pointer; }
+  .task:hover { box-shadow:var(--shadow); }
+  .task.top { padding:18px 20px; margin-bottom:18px; box-shadow:var(--shadow-lg); border-color:var(--border-strong); }
+  .task.top .title { font-size:16px; font-weight:600; }
+  .task.done { opacity:0.45; } .task.done .title { text-decoration:line-through; }
+  .title-row { display:flex; align-items:flex-start; gap:10px; }
+  .checkbox { width:18px; height:18px; border:1.5px solid var(--text-faint); border-radius:5px; flex-shrink:0; margin-top:1px; }
+  .task.done .checkbox { background:var(--text-dim); border-color:var(--text-dim); }
+  .task .title { font-size:14px; font-weight:500; flex:1; }
+  .task .row-meta { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; margin-left:28px; }
+  .pill { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; background:var(--bg); font-size:11px; border:1px solid var(--border); color:var(--text-dim); }
+  .pill.cat { color:#fff; border:none; font-weight:500; }
+  .pill.cat[data-cat=work]{background:var(--cat-work)} .pill.cat[data-cat=personal]{background:var(--cat-personal)}
+  .pill.cat[data-cat=health]{background:var(--cat-health)} .pill.cat[data-cat=learning]{background:var(--cat-learning)}
+  .pill.cat[data-cat=errands]{background:var(--cat-errands)} .pill.cat[data-cat=side_project]{background:var(--cat-side_project)}
+  .pill.cat[data-cat=other]{background:var(--cat-other)}
+  .pill.goal { gap:6px; } .pill.goal .dot { width:7px; height:7px; border-radius:50%; }
+  .sparkle { color:hsl(45,95%,50%); font-size:10px; }
+  [data-theme=dark] .sparkle { color:hsl(48,95%,60%); }
+  .map-note { border:1px dashed var(--border-strong); border-radius:10px; padding:40px; text-align:center; color:var(--text-faint); font-size:13px; }
+
+  /* settings menu */
+  .menu-wrap { position:relative; }
+  .menu { position:absolute; right:0; top:36px; background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow-lg); padding:5px; min-width:170px; z-index:30; }
+  .menu button { display:block; width:100%; text-align:left; background:transparent; border:none; padding:8px 10px; border-radius:7px; font:inherit; font-size:13px; color:var(--text); cursor:pointer; }
+  .menu button:hover { background:var(--bg); }
+  .menu button.danger { color:#dc2626; }
+  [data-theme=dark] .menu button.danger { color:#f87171; }
+  .menu .sep { height:1px; background:var(--border); margin:4px 2px; }
+
+  /* DETAIL PANEL (right drawer) */
+  .panel { position:fixed; top:0; right:0; height:100vh; width:var(--panel-w); background:var(--surface); border-left:1px solid var(--border); box-shadow:var(--shadow-lg); padding:22px 22px 40px; overflow-y:auto; transform:translateX(100%); transition:transform .18s; z-index:40; }
+  .panel.open { transform:none; }
+  .panel .close { position:absolute; top:14px; right:14px; border:none; background:transparent; font-size:20px; color:var(--text-faint); cursor:pointer; }
+  .panel .ptitle { font-size:18px; font-weight:600; margin:6px 0 14px; }
+  .field-block { margin-top:18px; }
+  .field-label { font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-faint); margin-bottom:6px; font-weight:600; display:block; }
+  .goal-field { display:flex; align-items:center; gap:8px; }
+  .goal-select { flex:1; display:flex; align-items:center; gap:8px; border:1px solid var(--border); border-radius:8px; padding:8px 10px; cursor:pointer; background:var(--bg); font-size:13px; }
+  .goal-select .dot { width:9px; height:9px; border-radius:50%; }
+  .goal-select:hover { border-color:var(--border-strong); }
+  .notes-box { border:1px solid var(--border); border-radius:8px; min-height:70px; padding:10px 12px; color:var(--text-faint); font-size:13px; background:var(--bg); }
+
+  /* MODAL */
+  .scrim { position:fixed; inset:0; background:rgba(0,0,0,0.35); display:none; align-items:center; justify-content:center; z-index:50; }
+  .scrim.open { display:flex; }
+  .modal { background:var(--surface); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow-lg); width:440px; max-width:92vw; padding:22px; }
+  .modal h3 { margin:0 0 6px; font-size:17px; }
+  .modal p { color:var(--text-dim); font-size:13px; margin:0 0 16px; }
+  .modal input[type=text], .modal textarea { width:100%; border:1px solid var(--border); border-radius:8px; padding:9px 11px; font:inherit; font-size:14px; background:var(--bg); color:var(--text); outline:none; }
+  .modal textarea { min-height:60px; resize:vertical; margin-top:10px; }
+  .modal .field-label { margin-top:14px; }
+  .swatches { display:flex; gap:8px; margin-top:6px; }
+  .swatch { width:24px; height:24px; border-radius:50%; cursor:pointer; border:2px solid transparent; }
+  .swatch.sel { border-color:var(--accent); box-shadow:0 0 0 2px var(--surface), 0 0 0 3px var(--accent); }
+  .disposition { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+  .disp-opt { display:flex; align-items:center; gap:10px; border:1px solid var(--border); border-radius:9px; padding:11px 13px; cursor:pointer; font-size:13px; }
+  .disp-opt.sel { border-color:var(--accent); background:var(--bg); }
+  .disp-opt input { margin:0; }
+  .disp-opt select { margin-left:auto; font:inherit; font-size:12px; padding:3px 6px; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text); }
+  .modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:8px; }
+  .pop { position:absolute; background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow-lg); padding:5px; z-index:45; min-width:180px; }
+  .pop button { display:flex; align-items:center; gap:8px; width:100%; text-align:left; background:transparent; border:none; padding:8px 10px; border-radius:7px; font:inherit; font-size:13px; color:var(--text); cursor:pointer; }
+  .pop button:hover { background:var(--bg); }
+  .pop .dot { width:9px; height:9px; border-radius:50%; }
+</style>
+</head>
+<body>
+<header>
+  <h1>priority-post <span class="dim">goals · phase A mockup</span></h1>
+  <span class="clock" id="clock">—</span>
+  <div class="spacer"></div>
+  <div class="view-toggle" id="viewToggle">
+    <button class="active" data-view="list">List</button>
+    <button data-view="map">Map</button>
+    <button data-view="split">Split</button>
+  </div>
+  <button class="btn ghost" id="themeBtn">🌙</button>
+</header>
+
+<main>
+  <!-- RAIL -->
+  <aside class="rail">
+    <div class="rail-label">View</div>
+    <div class="rail-item active" data-sel="overview">
+      <span class="glyph">≡</span><span class="name">Overview</span><span class="count">23</span>
+    </div>
+    <div class="rail-divider"></div>
+    <div class="rail-label">Goals</div>
+    <div class="rail-item" data-sel="goal" data-goal="ship">
+      <span class="dot" style="background:var(--cat-side_project)"></span><span class="name">Ship priority-post v3</span><span class="count">7</span>
+    </div>
+    <div class="rail-item" data-sel="goal" data-goal="run">
+      <span class="dot" style="background:var(--cat-health)"></span><span class="name">Run a half marathon</span><span class="count">5</span>
+    </div>
+    <div class="rail-item" data-sel="goal" data-goal="boston">
+      <span class="dot" style="background:var(--cat-personal)"></span><span class="name">Plan move to Boston</span><span class="count">4</span>
+    </div>
+    <div class="rail-add"><button id="newGoalBtn">+ new goal</button></div>
+  </aside>
+
+  <!-- OVERVIEW -->
+  <section class="pane" id="overviewPane">
+    <div class="ctx-head"><div><h2>Overview</h2><div class="meta">23 open · ranked across all goals and loose tasks</div></div></div>
+    <div style="margin-top:16px"></div>
+    <div class="add-bar"><input placeholder="add a task…" /><span class="hint">⏎ — no goal (you're in Overview)</span></div>
+    <div id="overviewList">
+      <div class="task top" onclick="openPanel('Sketch goal hierarchy', 'ship')">
+        <div class="title-row"><div class="checkbox"></div><div class="title">Sketch goal hierarchy + decide on schema</div></div>
+        <div class="row-meta"><span class="pill cat" data-cat="side_project">side_project</span><span class="pill goal"><span class="dot" style="background:var(--cat-side_project)"></span>Ship v3</span><span class="pill">urgency 78 <span class="sparkle">✨</span></span></div>
+      </div>
+      <div class="task" onclick="openPanel('Buy new running shoes', 'run')">
+        <div class="title-row"><div class="checkbox"></div><div class="title">Buy new running shoes</div></div>
+        <div class="row-meta"><span class="pill cat" data-cat="errands">errands</span><span class="pill goal"><span class="dot" style="background:var(--cat-health)"></span>Half marathon</span></div>
+      </div>
+      <div class="task" onclick="openPanel('Reply to landlord email', null)">
+        <div class="title-row"><div class="checkbox"></div><div class="title">Reply to landlord email</div></div>
+        <div class="row-meta"><span class="pill cat" data-cat="personal">personal</span><span class="pill" style="border-style:dashed">no goal</span></div>
+      </div>
+    </div>
+    <div class="map-note" id="mapNote" style="display:none">Priority-map / split rendering goes here (Overview only). Same map you have today, just reachable from the header toggle.</div>
+  </section>
+
+  <!-- GOAL PAGE -->
+  <section class="pane" id="goalPane" style="display:none">
+    <div class="ctx-head">
+      <div><h2 id="goalTitle">Ship priority-post v3</h2><div class="meta" id="goalMeta">7 tasks · 2 done · started 3 weeks ago</div></div>
+      <div class="menu-wrap">
+        <button class="btn ghost" id="goalMenuBtn" style="font-size:18px">⋯</button>
+        <div class="menu" id="goalMenu" style="display:none">
+          <button>Rename goal</button>
+          <button>Change color</button>
+          <div class="sep"></div>
+          <button class="danger" id="deleteGoalBtn">Delete goal…</button>
+        </div>
+      </div>
+    </div>
+    <div class="goal-desc">Get the app to a point I'd be comfortable showing someone — goal hierarchy, rich notes, push notifications.<em>Click to edit · last updated 2 days ago</em></div>
+    <div class="add-bar"><input placeholder="add a task to this goal…" /><span class="hint">⏎ — assigned to “Ship v3”</span></div>
+    <div class="section-label">Top priority</div>
+    <div class="task top" onclick="openPanel('Sketch goal hierarchy', 'ship')">
+      <div class="title-row"><div class="checkbox"></div><div class="title">Sketch goal hierarchy + decide on schema</div></div>
+      <div class="row-meta"><span class="pill cat" data-cat="side_project">side_project</span><span class="pill">urgency 78 <span class="sparkle">✨</span></span><span class="pill">importance 90 <span class="sparkle">✨</span></span></div>
+    </div>
+    <div class="section-label">Up next</div>
+    <div class="task" onclick="openPanel('Drizzle migration: goals table', 'ship')">
+      <div class="title-row"><div class="checkbox"></div><div class="title">Drizzle migration: goals table + tasks.goal_id FK</div></div>
+      <div class="row-meta"><span class="pill cat" data-cat="side_project">side_project</span><span class="pill">~30min <span class="sparkle">✨</span></span></div>
+    </div>
+    <div class="task" onclick="openPanel('Wire left rail UI', 'ship')">
+      <div class="title-row"><div class="checkbox"></div><div class="title">Wire left rail UI — render goals, click-to-filter</div></div>
+      <div class="row-meta"><span class="pill cat" data-cat="side_project">side_project</span></div>
+    </div>
+    <div class="section-label">Done</div>
+    <div class="task done"><div class="title-row"><div class="checkbox"></div><div class="title">Deploy phase 2 (lite) to Vercel</div></div></div>
+  </section>
+</main>
+
+<!-- DETAIL PANEL -->
+<aside class="panel" id="panel">
+  <button class="close" onclick="closePanel()">×</button>
+  <div class="ptitle" id="panelTitle">Task title</div>
+  <div style="display:flex; gap:6px; flex-wrap:wrap"><span class="pill cat" data-cat="side_project">side_project</span><button class="pill" style="cursor:pointer">+ tag</button></div>
+
+  <div class="field-block">
+    <label class="field-label">Goal <span style="text-transform:none; font-weight:400; color:var(--text-faint)">— assign or change anytime</span></label>
+    <div class="goal-field menu-wrap">
+      <div class="goal-select" id="goalSelect" onclick="toggleGoalPop(event)"><span class="dot" id="goalSelDot" style="background:var(--cat-side_project)"></span><span id="goalSelName">Ship priority-post v3</span></div>
+    </div>
+  </div>
+
+  <div class="field-block">
+    <label class="field-label">Notes</label>
+    <div class="notes-box">Rich-text notes (already shipped) live here.</div>
+  </div>
+  <div class="field-block">
+    <label class="field-label">Est. time</label>
+    <div class="pill" style="display:inline-flex">~45min <span class="sparkle">✨</span></div>
+  </div>
+</aside>
+
+<!-- NEW GOAL MODAL -->
+<div class="scrim" id="newGoalScrim">
+  <div class="modal">
+    <h3>New goal</h3>
+    <p>Name it, give it a color. Description optional.</p>
+    <input type="text" placeholder="Goal name" />
+    <label class="field-label">Color</label>
+    <div class="swatches" id="swatches"></div>
+    <textarea placeholder="What does done look like? (optional)"></textarea>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeScrim('newGoalScrim')">Cancel</button><button class="btn primary" onclick="closeScrim('newGoalScrim')">Create goal</button></div>
+  </div>
+</div>
+
+<!-- DELETE GOAL MODAL -->
+<div class="scrim" id="deleteScrim">
+  <div class="modal">
+    <h3>Delete “Ship priority-post v3”?</h3>
+    <p>This goal has <strong>7 tasks</strong>. Choose what happens to them:</p>
+    <div class="disposition" id="disposition">
+      <label class="disp-opt sel"><input type="radio" name="disp" checked /><span>Move them to Overview (no goal)</span></label>
+      <label class="disp-opt"><input type="radio" name="disp" /><span>Move them to another goal</span><select><option>Run a half marathon</option><option>Plan move to Boston</option></select></label>
+      <label class="disp-opt"><input type="radio" name="disp" /><span>Delete the tasks too</span></label>
+    </div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeScrim('deleteScrim')">Cancel</button><button class="btn danger" onclick="closeScrim('deleteScrim')">Delete goal</button></div>
+  </div>
+</div>
+
+<script>
+  // theme
+  const root = document.documentElement, tbtn = document.getElementById('themeBtn');
+  const prefersDark = matchMedia('(prefers-color-scheme: dark)').matches;
+  if (prefersDark) root.setAttribute('data-theme','dark');
+  function syncTheme(){ tbtn.textContent = root.getAttribute('data-theme')==='dark' ? '☀' : '🌙'; }
+  syncTheme();
+  tbtn.onclick = () => { root.getAttribute('data-theme')==='dark' ? root.removeAttribute('data-theme') : root.setAttribute('data-theme','dark'); syncTheme(); };
+
+  // clock
+  function tick(){ const d=new Date(); document.getElementById('clock').textContent = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
+  tick(); setInterval(tick, 10000);
+
+  // rail selection
+  const overviewPane = document.getElementById('overviewPane'), goalPane = document.getElementById('goalPane');
+  const goalData = {
+    ship:{title:'Ship priority-post v3', meta:'7 tasks · 2 done · started 3 weeks ago'},
+    run:{title:'Run a half marathon', meta:'5 tasks · 1 done · started 6 weeks ago'},
+    boston:{title:'Plan move to Boston', meta:'4 tasks · 0 done · started 1 week ago'},
+  };
+  document.querySelectorAll('.rail-item').forEach(el => el.addEventListener('click', () => {
+    document.querySelectorAll('.rail-item').forEach(x => x.classList.remove('active'));
+    el.classList.add('active');
+    if (el.dataset.sel === 'overview') { overviewPane.style.display=''; goalPane.style.display='none'; }
+    else {
+      const g = goalData[el.dataset.goal];
+      document.getElementById('goalTitle').textContent = g.title;
+      document.getElementById('goalMeta').textContent = g.meta;
+      document.querySelector('#deleteScrim h3').textContent = `Delete “${g.title}”?`;
+      overviewPane.style.display='none'; goalPane.style.display='';
+    }
+  }));
+
+  // header view toggle (overview only)
+  document.querySelectorAll('#viewToggle button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#viewToggle button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    const isList = b.dataset.view === 'list';
+    document.getElementById('overviewList').style.display = isList ? '' : 'none';
+    document.getElementById('mapNote').style.display = isList ? 'none' : '';
+  }));
+
+  // goal settings menu
+  const goalMenu = document.getElementById('goalMenu');
+  document.getElementById('goalMenuBtn').onclick = (e) => { e.stopPropagation(); goalMenu.style.display = goalMenu.style.display==='none' ? '' : 'none'; };
+  document.addEventListener('click', () => { goalMenu.style.display='none'; const p=document.getElementById('goalPop'); if(p) p.remove(); });
+  document.getElementById('deleteGoalBtn').onclick = () => openScrim('deleteScrim');
+
+  // detail panel
+  function openPanel(title, goalKey){
+    document.getElementById('panelTitle').textContent = title;
+    const sel = document.getElementById('goalSelName'), dot = document.getElementById('goalSelDot');
+    if (goalKey) { sel.textContent = goalData[goalKey].title; dot.style.display=''; dot.style.background = goalKey==='ship'?'var(--cat-side_project)':goalKey==='run'?'var(--cat-health)':'var(--cat-personal)'; }
+    else { sel.textContent = 'No goal'; dot.style.display='none'; }
+    document.getElementById('panel').classList.add('open');
+  }
+  function closePanel(){ document.getElementById('panel').classList.remove('open'); }
+
+  // goal picker popover (in panel)
+  function toggleGoalPop(e){
+    e.stopPropagation();
+    const existing = document.getElementById('goalPop'); if (existing){ existing.remove(); return; }
+    const pop = document.createElement('div'); pop.className='pop'; pop.id='goalPop';
+    pop.innerHTML = `
+      <button onclick="pickGoal('No goal', null)"><span class="dot" style="background:var(--text-faint)"></span>No goal</button>
+      <button onclick="pickGoal('Ship priority-post v3','var(--cat-side_project)')"><span class="dot" style="background:var(--cat-side_project)"></span>Ship priority-post v3</button>
+      <button onclick="pickGoal('Run a half marathon','var(--cat-health)')"><span class="dot" style="background:var(--cat-health)"></span>Run a half marathon</button>
+      <button onclick="pickGoal('Plan move to Boston','var(--cat-personal)')"><span class="dot" style="background:var(--cat-personal)"></span>Plan move to Boston</button>`;
+    const r = e.currentTarget.getBoundingClientRect();
+    pop.style.top = (r.bottom+4)+'px'; pop.style.left = r.left+'px'; pop.style.width = r.width+'px';
+    document.body.appendChild(pop);
+  }
+  function pickGoal(name, color){
+    document.getElementById('goalSelName').textContent = name;
+    const dot = document.getElementById('goalSelDot');
+    if (color){ dot.style.display=''; dot.style.background=color; } else dot.style.display='none';
+    const p=document.getElementById('goalPop'); if(p) p.remove();
+  }
+
+  // disposition radio styling
+  document.querySelectorAll('.disp-opt input').forEach(inp => inp.addEventListener('change', () => {
+    document.querySelectorAll('.disp-opt').forEach(o => o.classList.remove('sel'));
+    inp.closest('.disp-opt').classList.add('sel');
+  }));
+
+  // swatches
+  const cats = ['work','personal','health','learning','errands','side_project','other'];
+  const sw = document.getElementById('swatches');
+  cats.forEach((c,i) => { const b=document.createElement('div'); b.className='swatch'+(i===5?' sel':''); b.style.background=`var(--cat-${c})`; b.onclick=()=>{document.querySelectorAll('.swatch').forEach(x=>x.classList.remove('sel')); b.classList.add('sel');}; sw.appendChild(b); });
+
+  // modals
+  function openScrim(id){ document.getElementById(id).classList.add('open'); }
+  function closeScrim(id){ document.getElementById(id).classList.remove('open'); }
+  document.getElementById('newGoalBtn').onclick = () => openScrim('newGoalScrim');
+  document.querySelectorAll('.scrim').forEach(s => s.addEventListener('click', e => { if(e.target===s) s.classList.remove('open'); }));
+</script>
+</body>
+</html>
