@@ -2,7 +2,9 @@
 
 import { db } from "@/db";
 import { tasks } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and, isNull, isNotNull } from "drizzle-orm";
+import { sortByScore } from "./scorer";
+import { midpoint } from "./ordering";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { ensureAtLeastOne, type Category } from "./categories";
@@ -41,6 +43,23 @@ export async function createTask(input: {
   const initialCategories = ensureAtLeastOne(input.categories ?? []);
   const initialPinned = userPickedCategories ? ["categories"] : [];
 
+  // When manual ordering is active, new tasks go to the top of their context:
+  // top of Overview (no goal) or top of the goal they're created in.
+  let position: number | null = null;
+  const openPositioned = await db
+    .select({ position: tasks.position, goalId: tasks.goalId })
+    .from(tasks)
+    .where(and(isNull(tasks.doneAt), isNotNull(tasks.position)));
+
+  if (openPositioned.length > 0) {
+    const positions =
+      input.goalId != null
+        ? openPositioned.filter((r) => r.goalId === input.goalId).map((r) => r.position!)
+        : [];
+    const basis = positions.length > 0 ? positions : openPositioned.map((r) => r.position!);
+    position = Math.min(...basis) - 1;
+  }
+
   const [inserted] = await db
     .insert(tasks)
     .values({
@@ -48,6 +67,7 @@ export async function createTask(input: {
       categories: initialCategories,
       pinnedFields: initialPinned,
       goalId: input.goalId ?? null,
+      position,
     })
     .returning({ id: tasks.id });
 
@@ -146,5 +166,39 @@ export async function toggleTaskDone(id: number, done: boolean) {
 
 export async function deleteTask(id: number) {
   await db.delete(tasks).where(eq(tasks.id, id));
+  revalidatePath("/");
+}
+
+/**
+ * Move a task to sit between prevId and nextId (either may be null at a list
+ * edge) in the manual order. On the first-ever drag, seed positions for all
+ * open tasks from the current scorer order so the global order stays coherent.
+ */
+export async function moveTask(
+  taskId: number,
+  prevId: number | null,
+  nextId: number | null
+) {
+  const openTasks = await db.select().from(tasks).where(isNull(tasks.doneAt));
+  const seeded = openTasks.some((t) => t.position !== null);
+
+  if (!seeded) {
+    const ordered = sortByScore(openTasks, new Date());
+    for (let i = 0; i < ordered.length; i++) {
+      await db.update(tasks).set({ position: i }).where(eq(tasks.id, ordered[i]!.id));
+    }
+  }
+
+  const posOf = async (id: number | null): Promise<number | null> => {
+    if (id === null) return null;
+    const [row] = await db
+      .select({ position: tasks.position })
+      .from(tasks)
+      .where(eq(tasks.id, id));
+    return row?.position ?? null;
+  };
+
+  const newPos = midpoint(await posOf(prevId), await posOf(nextId));
+  await db.update(tasks).set({ position: newPos }).where(eq(tasks.id, taskId));
   revalidatePath("/");
 }
