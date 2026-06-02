@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { tasks } from "@/db/schema";
 import { eq, sql, and, isNull, isNotNull } from "drizzle-orm";
 import { sortByScore } from "./scorer";
-import { midpoint } from "./ordering";
+import { positionAfter, positionBefore } from "./ordering";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { ensureAtLeastOne, type Category } from "./categories";
@@ -43,8 +43,10 @@ export async function createTask(input: {
   const initialCategories = ensureAtLeastOne(input.categories ?? []);
   const initialPinned = userPickedCategories ? ["categories"] : [];
 
-  // When manual ordering is active, new tasks go to the top of their context:
-  // top of Overview (no goal) or top of the goal they're created in.
+  // When manual ordering is active, place new tasks at the top of their context:
+  // top of Overview, or just above the goal's current tasks. A new task in a goal
+  // that has no manual order yet stays unpositioned (the scorer places it) — it
+  // must NOT jump to global #1.
   let position: number | null = null;
   const openPositioned = await db
     .select({ position: tasks.position, goalId: tasks.goalId })
@@ -52,12 +54,17 @@ export async function createTask(input: {
     .where(and(isNull(tasks.doneAt), isNotNull(tasks.position)));
 
   if (openPositioned.length > 0) {
-    const positions =
-      input.goalId != null
-        ? openPositioned.filter((r) => r.goalId === input.goalId).map((r) => r.position!)
-        : [];
-    const basis = positions.length > 0 ? positions : openPositioned.map((r) => r.position!);
-    position = Math.min(...basis) - 1;
+    const allPositions = openPositioned.map((r) => r.position!);
+    if (input.goalId != null) {
+      const goalPositions = openPositioned
+        .filter((r) => r.goalId === input.goalId)
+        .map((r) => r.position!);
+      if (goalPositions.length > 0) {
+        position = positionBefore(Math.min(...goalPositions), allPositions);
+      }
+    } else {
+      position = positionBefore(Math.min(...allPositions), allPositions);
+    }
   }
 
   const [inserted] = await db
@@ -172,14 +179,16 @@ export async function deleteTask(id: number) {
 /**
  * Move a task to sit between prevId and nextId (either may be null at a list
  * edge) in the manual order. On the first-ever drag, seed positions for all
- * open tasks from the current scorer order so the global order stays coherent.
+ * open tasks from the current scorer order. Inserts between the dragged task's
+ * real global neighbors so positions never collide (the prev/next ids are the
+ * neighbors in the displayed list, which may be a goal-filtered subset).
  */
 export async function moveTask(
   taskId: number,
   prevId: number | null,
   nextId: number | null
 ) {
-  const openTasks = await db.select().from(tasks).where(isNull(tasks.doneAt));
+  let openTasks = await db.select().from(tasks).where(isNull(tasks.doneAt));
   const seeded = openTasks.some((t) => t.position !== null);
 
   if (!seeded) {
@@ -187,19 +196,19 @@ export async function moveTask(
     for (let i = 0; i < ordered.length; i++) {
       await db.update(tasks).set({ position: i }).where(eq(tasks.id, ordered[i]!.id));
     }
+    openTasks = await db.select().from(tasks).where(isNull(tasks.doneAt));
   }
 
-  const posOf = async (id: number | null): Promise<number | null> => {
-    if (id === null) return null;
-    const [row] = await db
-      .select({ position: tasks.position })
-      .from(tasks)
-      .where(eq(tasks.id, id));
-    return row?.position ?? null;
-  };
+  const posById = new Map(openTasks.map((t) => [t.id, t.position]));
+  const allPositions = openTasks
+    .filter((t) => t.id !== taskId && t.position !== null)
+    .map((t) => t.position!);
 
-  const [prevPos, nextPos] = await Promise.all([posOf(prevId), posOf(nextId)]);
-  const newPos = midpoint(prevPos, nextPos);
+  let newPos: number;
+  if (prevId !== null) newPos = positionAfter(posById.get(prevId) ?? null, allPositions);
+  else if (nextId !== null) newPos = positionBefore(posById.get(nextId) ?? null, allPositions);
+  else newPos = 0;
+
   await db.update(tasks).set({ position: newPos }).where(eq(tasks.id, taskId));
   revalidatePath("/");
 }

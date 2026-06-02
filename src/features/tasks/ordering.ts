@@ -10,6 +10,24 @@ export function midpoint(prevPos: number | null, nextPos: number | null): number
   return 0;
 }
 
+/** Collision-free position to drop a task just AFTER prevPos (null = top of list). */
+export function positionAfter(prevPos: number | null, allPositions: number[]): number {
+  if (prevPos === null) {
+    return allPositions.length ? Math.min(...allPositions) - 1 : 0;
+  }
+  const above = allPositions.filter((p) => p > prevPos);
+  return midpoint(prevPos, above.length ? Math.min(...above) : null);
+}
+
+/** Collision-free position to drop a task just BEFORE nextPos (null = bottom of list). */
+export function positionBefore(nextPos: number | null, allPositions: number[]): number {
+  if (nextPos === null) {
+    return allPositions.length ? Math.max(...allPositions) + 1 : 0;
+  }
+  const below = allPositions.filter((p) => p < nextPos);
+  return midpoint(below.length ? Math.max(...below) : null, nextPos);
+}
+
 /**
  * List order for open tasks: tasks the user has hand-placed come first (by
  * ascending position); everything else falls back to the deterministic scorer.
