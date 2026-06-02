@@ -1,3 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Drag-and-Drop Reordering — Design</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif; line-height:1.6; max-width:860px; margin:0 auto; padding:40px 24px 120px; color:#1a1a1a; background:#fafaf8; }
+  @media (prefers-color-scheme: dark){ body{ color:#e8e6e0; background:#16161a; } }
+  h1{ font-size:30px; border-bottom:2px solid currentColor; padding-bottom:10px; }
+  h2{ font-size:22px; margin-top:36px; }
+  h3{ font-size:18px; margin-top:30px; padding:6px 10px; background:rgba(127,127,127,0.12); border-radius:8px; }
+  code{ font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:0.88em; background:rgba(127,127,127,0.16); padding:2px 5px; border-radius:5px; }
+  pre{ background:#0f1117; color:#e6edf3; padding:14px 16px; border-radius:10px; overflow-x:auto; border:1px solid rgba(127,127,127,0.25); }
+  pre code{ background:none; padding:0; font-size:13px; }
+  blockquote{ border-left:4px solid #888; margin:16px 0; padding:4px 16px; background:rgba(127,127,127,0.08); border-radius:0 8px 8px 0; }
+  table{ border-collapse:collapse; width:100%; }
+  th,td{ border:1px solid rgba(127,127,127,0.35); padding:7px 10px; text-align:left; }
+  hr{ border:none; border-top:1px solid rgba(127,127,127,0.3); margin:32px 0; }
+  li{ margin:3px 0; }
+  a{ color:#2563eb; } @media (prefers-color-scheme: dark){ a{ color:#6ea8fe; } }
+</style>
+</head>
+<body>
+<article id="out"></article>
+<textarea id="src" hidden>
 # Drag-and-Drop Task Reordering — Design
 
 **Date:** 2026-06-02
@@ -94,3 +122,11 @@ When manual mode is not active, leave `position = null` (scorer handles it). No 
 - Per-context ordering (independent order inside a goal vs Overview).
 - Drag-reordering goals themselves in the rail; drag-to-assign a task onto a goal.
 - Reordering the done section.
+</textarea>
+<script>
+  marked.use({ gfm: true });
+  document.getElementById('out').innerHTML = marked.parse(document.getElementById('src').value);
+  document.title = (document.querySelector('h1')?.textContent || 'Spec');
+</script>
+</body>
+</html>
