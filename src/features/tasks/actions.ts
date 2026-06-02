@@ -29,7 +29,11 @@ async function pinField(id: number, field: string) {
   await db.update(tasks).set({ pinnedFields: next }).where(eq(tasks.id, id));
 }
 
-export async function createTask(input: { title: string; categories?: string[] }) {
+export async function createTask(input: {
+  title: string;
+  categories?: string[];
+  goalId?: number | null;
+}) {
   const title = input.title.trim();
   if (!title) return;
 
@@ -39,7 +43,12 @@ export async function createTask(input: { title: string; categories?: string[] }
 
   const [inserted] = await db
     .insert(tasks)
-    .values({ title, categories: initialCategories, pinnedFields: initialPinned })
+    .values({
+      title,
+      categories: initialCategories,
+      pinnedFields: initialPinned,
+      goalId: input.goalId ?? null,
+    })
     .returning({ id: tasks.id });
 
   revalidatePath("/");

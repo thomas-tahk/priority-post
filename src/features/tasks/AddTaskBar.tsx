@@ -3,7 +3,15 @@
 import { useState, useTransition } from "react";
 import { createTask } from "./actions";
 
-export function AddTaskBar() {
+export function AddTaskBar({
+  goalId = null,
+  placeholder = "Add a task… (anything from a quick errand to a big goal)",
+  hint = "⏎ to add",
+}: {
+  goalId?: number | null;
+  placeholder?: string;
+  hint?: string;
+}) {
   const [value, setValue] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -11,7 +19,7 @@ export function AddTaskBar() {
     const title = value.trim();
     if (!title) return;
     startTransition(async () => {
-      await createTask({ title });
+      await createTask({ title, goalId });
       setValue("");
     });
   }
@@ -20,15 +28,13 @@ export function AddTaskBar() {
     <div className="add-bar">
       <input
         type="text"
-        placeholder="Add a task… (anything from a quick errand to a big goal)"
+        placeholder={placeholder}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") submit();
-        }}
+        onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
         disabled={isPending}
       />
-      <span className="hint">⏎ to add</span>
+      <span className="hint">{hint}</span>
     </div>
   );
 }

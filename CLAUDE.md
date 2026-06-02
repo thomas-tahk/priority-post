@@ -63,6 +63,12 @@ Feature folders own their own components, server actions, and tests. Cross-featu
 - `pinned_fields jsonb` — set of field names the user has overridden. Drives the sparkle ✨ badge
   (badge shows when field is NOT in `pinned_fields`).
 - `start_at` (nullable) for scheduled tasks.
+- `goal_id` (nullable int, FK → `goals.id`, `ON DELETE SET NULL`) — the goal a task belongs to, if any.
+  Tasks can be goal-less; assignment is contextual at creation and editable later.
+
+`goals` table (Phase A):
+- `id`, `name` (not null), `description` (nullable), `color` (text — one of the 7 category color keys,
+  reused for the rail dot), `created_at`. Goals don't affect the scorer — they're an organizational layer.
 
 ## Scorer (deterministic)
 
