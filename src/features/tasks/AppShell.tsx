@@ -5,6 +5,7 @@ import type { Task, Goal } from "@/db/schema";
 import { Constellation } from "@/features/constellation/Constellation";
 import type { ScoredTask } from "@/features/constellation/layout";
 import { AddTaskBar } from "./AddTaskBar";
+import { SortableTaskList } from "./SortableTaskList";
 import { TaskRow } from "./TaskRow";
 import { Header, readStoredView, type ViewMode } from "./Header";
 import { DetailPanel } from "./DetailPanel";
@@ -81,7 +82,11 @@ export function AppShell({
                 <section className="list-pane">
                   <AddTaskBar />
                   <p className="section-label">
-                    {scoredOpen.length === 0 ? "no open tasks" : `${scoredOpen.length} open · ranked`}
+                    {scoredOpen.length === 0
+                      ? "no open tasks"
+                      : `${scoredOpen.length} open · ${
+                          scoredOpen.some((t) => t.position !== null) ? "your order" : "ranked"
+                        }`}
                   </p>
                   {scoredOpen.length > 0 && (
                     <div style={{ marginBottom: 14 }}>
@@ -91,19 +96,7 @@ export function AppShell({
                   {scoredOpen.length === 0 ? (
                     <p className="empty">Add a task above to get started.</p>
                   ) : (
-                    scoredOpen.map((t, i) => (
-                      <div
-                        key={t.id}
-                        data-detail-opener
-                        onClick={(e) => {
-                          const tag = (e.target as HTMLElement).tagName;
-                          if (["INPUT", "BUTTON", "TEXTAREA", "SELECT"].includes(tag)) return;
-                          setSelected(t);
-                        }}
-                      >
-                        <TaskRow task={t} isTop={i === 0} />
-                      </div>
-                    ))
+                    <SortableTaskList tasks={scoredOpen} onOpen={setSelected} />
                   )}
                   {done.length > 0 && (
                     <>
