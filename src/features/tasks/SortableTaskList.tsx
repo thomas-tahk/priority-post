@@ -50,7 +50,7 @@ function SortableRow({
         {...attributes}
         {...listeners}
       >
-        ⠿
+        <span aria-hidden="true">⠿</span>
       </button>
       <div
         className="sortable-row-body"
@@ -99,7 +99,7 @@ export function SortableTaskList({
 
     startTransition(async () => {
       setOptimistic(next);
-      await moveTask(Number(active.id), prevId, nextId);
+      await moveTask(next[newIndex]!.id, prevId, nextId);
     });
   }
 
