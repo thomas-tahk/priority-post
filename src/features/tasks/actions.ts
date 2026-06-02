@@ -3,8 +3,7 @@
 import { db } from "@/db";
 import { tasks } from "@/db/schema";
 import { eq, sql, and, isNull, isNotNull } from "drizzle-orm";
-import { sortByScore } from "./scorer";
-import { positionAfter, positionBefore } from "./ordering";
+import { orderOpenTasks, positionAfter, positionBefore } from "./ordering";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { ensureAtLeastOne, type Category } from "./categories";
@@ -189,10 +188,14 @@ export async function moveTask(
   nextId: number | null
 ) {
   let openTasks = await db.select().from(tasks).where(isNull(tasks.doneAt));
-  const seeded = openTasks.some((t) => t.position !== null);
+  // Seed positions whenever any open task is unpositioned, preserving the
+  // current display order (manual order first, then scorer). This guarantees
+  // every open task has a position before we compute neighbors — so a drag
+  // next to a previously-unpositioned task can't send it to the top.
+  const fullySeeded = openTasks.every((t) => t.position !== null);
 
-  if (!seeded) {
-    const ordered = sortByScore(openTasks, new Date());
+  if (!fullySeeded) {
+    const ordered = orderOpenTasks(openTasks, new Date());
     for (let i = 0; i < ordered.length; i++) {
       await db.update(tasks).set({ position: i }).where(eq(tasks.id, ordered[i]!.id));
     }
