@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Drag-and-Drop Reordering — Implementation Plan</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif; line-height:1.6; max-width:860px; margin:0 auto; padding:40px 24px 120px; color:#1a1a1a; background:#fafaf8; }
+  @media (prefers-color-scheme: dark){ body{ color:#e8e6e0; background:#16161a; } }
+  h1{ font-size:30px; border-bottom:2px solid currentColor; padding-bottom:10px; }
+  h2{ font-size:22px; margin-top:36px; }
+  h3{ font-size:18px; margin-top:30px; padding:6px 10px; background:rgba(127,127,127,0.12); border-radius:8px; }
+  code{ font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:0.88em; background:rgba(127,127,127,0.16); padding:2px 5px; border-radius:5px; }
+  pre{ background:#0f1117; color:#e6edf3; padding:14px 16px; border-radius:10px; overflow-x:auto; border:1px solid rgba(127,127,127,0.25); }
+  pre code{ background:none; padding:0; font-size:13px; }
+  blockquote{ border-left:4px solid #888; margin:16px 0; padding:4px 16px; background:rgba(127,127,127,0.08); border-radius:0 8px 8px 0; }
+  table{ border-collapse:collapse; width:100%; }
+  th,td{ border:1px solid rgba(127,127,127,0.35); padding:7px 10px; text-align:left; }
+  hr{ border:none; border-top:1px solid rgba(127,127,127,0.3); margin:32px 0; }
+  li{ margin:3px 0; }
+  input[type=checkbox]{ margin-right:6px; }
+  a{ color:#2563eb; } @media (prefers-color-scheme: dark){ a{ color:#6ea8fe; } }
+</style>
+</head>
+<body>
+<article id="out"></article>
+<textarea id="src" hidden>
+# Drag-and-Drop Reordering Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Let the owner drag tasks into a manual order that persists and wins over the scorer, in the Overview list and within goals.
+
+**Architecture:** A nullable `position` column makes manual order data. A pure `orderOpenTasks` sorter puts positioned tasks first (by position) and lets the scorer rank the rest. Dragging calls `moveTask`, which seeds positions from the scorer's order on the first drag and then inserts via fractional midpoints. `@dnd-kit` drives the UI with optimistic updates.
+
+**Tech Stack:** Next.js 16 App Router, Drizzle/Postgres, TypeScript, Vitest, `@dnd-kit`. Spec: `docs/superpowers/specs/2026-06-02-dnd-reordering-design.md`.
+
+**Branch:** all work on `dnd-reordering` (branched from `main`). Do not push until Task 9.
+
+**Testing note:** pure functions (`midpoint`, `orderOpenTasks`) get full TDD. DB actions and React components are verified via `pnpm typecheck` + `pnpm build` + manual testing — consistent with the repo (no DB integration harness).
+
+---
+
+### Task 1: Schema — `position` column
+
+**Files:**
+- Modify: `src/db/schema.ts`
+- Modify: `src/features/constellation/layout.test.ts`
+- Create (generated): `drizzle/<timestamp>_*.sql`
+
+- [ ] **Step 1: Add the column**
+
+In `src/db/schema.ts`, add `doublePrecision` to the import from `drizzle-orm/pg-core`, then add a `position` field to the `tasks` table (place it last, after `goalId`):
+
+```ts
+import { pgTable, serial, text, timestamp, integer, jsonb, doublePrecision } from "drizzle-orm/pg-core";
+```
+```ts
+  goalId: integer("goal_id").references(() => goals.id, { onDelete: "set null" }),
+  position: doublePrecision("position"),
+```
+
+- [ ] **Step 2: Generate the migration**
+
+Run: `pnpm db:generate`
+Expected: a new file under `drizzle/` with `ALTER TABLE "tasks" ADD COLUMN "position" double precision;`. Open it and confirm.
+
+- [ ] **Step 3: Apply to the dev DB**
+
+Run: `docker compose up -d` then `pnpm db:migrate`
+Expected: applies with no error.
+
+- [ ] **Step 4: Fix the test fixture that the new column breaks**
+
+`pnpm typecheck` will now fail in `src/features/constellation/layout.test.ts` because its `mkScored()` helper builds a full `Task` literal missing `position`. Add `position: null` to that fixture's base object (alongside `goalId: null`). Change only that — no test values/assertions.
+
+Run: `pnpm typecheck` → expected: clean. Run: `pnpm test` → expected: all pass.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/db/schema.ts drizzle/ src/features/constellation/layout.test.ts
+git commit -m "feat(dnd): add tasks.position column"
+```
+
+---
+
+### Task 2: Pure logic — `midpoint`
+
+**Files:**
+- Create: `src/features/tasks/ordering.ts`
+- Test: `src/features/tasks/ordering.test.ts`
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+import { describe, it, expect } from "vitest";
+import { midpoint } from "./ordering";
+
+describe("midpoint", () => {
+  it("averages two positions", () => {
+    expect(midpoint(2, 4)).toBe(3);
+  });
+  it("goes after when only prev is given", () => {
+    expect(midpoint(5, null)).toBe(6);
+  });
+  it("goes before when only next is given", () => {
+    expect(midpoint(null, 5)).toBe(4);
+  });
+  it("returns 0 for an empty list (no neighbors)", () => {
+    expect(midpoint(null, null)).toBe(0);
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pnpm exec vitest run src/features/tasks/ordering.test.ts`
+Expected: FAIL — cannot find module `./ordering`.
+
+- [ ] **Step 3: Write minimal implementation**
+
+```ts
+// Fractional position helpers for manual task ordering.
+
+/** Position that lands a task between two neighbors (null = list edge). */
+export function midpoint(prevPos: number | null, nextPos: number | null): number {
+  if (prevPos !== null && nextPos !== null) return (prevPos + nextPos) / 2;
+  if (prevPos !== null) return prevPos + 1;
+  if (nextPos !== null) return nextPos - 1;
+  return 0;
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `pnpm exec vitest run src/features/tasks/ordering.test.ts`
+Expected: PASS (4 tests).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/features/tasks/ordering.ts src/features/tasks/ordering.test.ts
+git commit -m "feat(dnd): midpoint position helper"
+```
+
+---
+
+### Task 3: Pure logic — `orderOpenTasks`
+
+**Files:**
+- Modify: `src/features/tasks/ordering.ts`
+- Modify: `src/features/tasks/ordering.test.ts`
+
+- [ ] **Step 1: Add the failing test**
+
+Append to `src/features/tasks/ordering.test.ts`:
+
+```ts
+import { orderOpenTasks } from "./ordering";
+
+function mk(id: number, opts: Partial<{ urgency: number; importance: number; position: number | null }> = {}) {
+  return {
+    id,
+    urgency: opts.urgency ?? 50,
+    importance: opts.importance ?? 50,
+    focus: null,
+    startAt: null,
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    position: opts.position ?? null,
+  };
+}
+
+const NOW = new Date("2026-06-02T12:00:00Z");
+
+describe("orderOpenTasks", () => {
+  it("falls back to score order when nothing is positioned", () => {
+    const a = mk(1, { urgency: 90 });
+    const b = mk(2, { urgency: 10 });
+    expect(orderOpenTasks([b, a], NOW).map((t) => t.id)).toEqual([1, 2]);
+  });
+
+  it("orders positioned tasks by position, ascending", () => {
+    const a = mk(1, { position: 2 });
+    const b = mk(2, { position: 1 });
+    expect(orderOpenTasks([a, b], NOW).map((t) => t.id)).toEqual([2, 1]);
+  });
+
+  it("puts positioned tasks before unpositioned ones", () => {
+    const positioned = mk(1, { position: 5, urgency: 1 });
+    const unpositioned = mk(2, { urgency: 99 });
+    expect(orderOpenTasks([unpositioned, positioned], NOW).map((t) => t.id)).toEqual([1, 2]);
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pnpm exec vitest run src/features/tasks/ordering.test.ts`
+Expected: FAIL — `orderOpenTasks` is not exported.
+
+- [ ] **Step 3: Add the implementation**
+
+Append to `src/features/tasks/ordering.ts`:
+
+```ts
+import { sortByScore, type TaskForScoring } from "./scorer";
+
+/**
+ * List order for open tasks: tasks the user has hand-placed come first (by
+ * ascending position); everything else falls back to the deterministic scorer.
+ * When nothing is positioned, this is exactly the scorer's order.
+ */
+export function orderOpenTasks<T extends TaskForScoring & { position: number | null }>(
+  tasks: T[],
+  now: Date
+): T[] {
+  const positioned = tasks.filter((t) => t.position !== null);
+  const unpositioned = tasks.filter((t) => t.position === null);
+  positioned.sort((a, b) => a.position! - b.position!);
+  return [...positioned, ...sortByScore(unpositioned, now)];
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `pnpm exec vitest run src/features/tasks/ordering.test.ts`
+Expected: PASS (7 tests total).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/features/tasks/ordering.ts src/features/tasks/ordering.test.ts
+git commit -m "feat(dnd): orderOpenTasks sorter (manual order, scorer fallback)"
+```
+
+---
+
+### Task 4: `moveTask` action + context-aware new-task position
+
+**Files:**
+- Modify: `src/features/tasks/actions.ts`
+
+- [ ] **Step 1: Update imports**
+
+At the top of `src/features/tasks/actions.ts`, replace the drizzle import and add two local imports:
+
+```ts
+import { eq, sql, and, isNull, isNotNull } from "drizzle-orm";
+import { sortByScore } from "./scorer";
+import { midpoint } from "./ordering";
+```
+
+(Keep all existing imports — `db`, `tasks`, `goals`, `revalidatePath`, `after`, `ensureAtLeastOne`, `triageTask`, etc.)
+
+- [ ] **Step 2: Add the `moveTask` action**
+
+Add at the end of `src/features/tasks/actions.ts`:
+
+```ts
+/**
+ * Move a task to sit between prevId and nextId (either may be null at a list
+ * edge) in the manual order. On the first-ever drag, seed positions for all
+ * open tasks from the current scorer order so the global order stays coherent.
+ */
+export async function moveTask(
+  taskId: number,
+  prevId: number | null,
+  nextId: number | null
+) {
+  const openTasks = await db.select().from(tasks).where(isNull(tasks.doneAt));
+  const seeded = openTasks.some((t) => t.position !== null);
+
+  if (!seeded) {
+    const ordered = sortByScore(openTasks, new Date());
+    for (let i = 0; i < ordered.length; i++) {
+      await db.update(tasks).set({ position: i }).where(eq(tasks.id, ordered[i]!.id));
+    }
+  }
+
+  const posOf = async (id: number | null): Promise<number | null> => {
+    if (id === null) return null;
+    const [row] = await db
+      .select({ position: tasks.position })
+      .from(tasks)
+      .where(eq(tasks.id, id));
+    return row?.position ?? null;
+  };
+
+  const newPos = midpoint(await posOf(prevId), await posOf(nextId));
+  await db.update(tasks).set({ position: newPos }).where(eq(tasks.id, taskId));
+  revalidatePath("/");
+}
+```
+
+- [ ] **Step 3: Make `createTask` place new tasks at the top of their context**
+
+Inside `createTask`, compute a `position` before the insert and include it in `.values({...})`. Replace the insert block so it reads:
+
+```ts
+  // When manual ordering is active, new tasks go to the top of their context:
+  // top of Overview (no goal) or top of the goal they're created in.
+  let position: number | null = null;
+  const openPositioned = await db
+    .select({ position: tasks.position, goalId: tasks.goalId })
+    .from(tasks)
+    .where(and(isNull(tasks.doneAt), isNotNull(tasks.position)));
+
+  if (openPositioned.length > 0) {
+    const positions =
+      input.goalId != null
+        ? openPositioned.filter((r) => r.goalId === input.goalId).map((r) => r.position!)
+        : [];
+    const basis = positions.length > 0 ? positions : openPositioned.map((r) => r.position!);
+    position = Math.min(...basis) - 1;
+  }
+
+  const [inserted] = await db
+    .insert(tasks)
+    .values({
+      title,
+      categories: initialCategories,
+      pinnedFields: initialPinned,
+      goalId: input.goalId ?? null,
+      position,
+    })
+    .returning({ id: tasks.id });
+```
+
+(The rest of `createTask` — the `revalidatePath` and the `after(...)` triage block — is unchanged.)
+
+- [ ] **Step 4: Typecheck**
+
+Run: `pnpm typecheck`
+Expected: no errors.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/features/tasks/actions.ts
+git commit -m "feat(dnd): moveTask action + context-aware new-task position"
+```
+
+---
+
+### Task 5: Sort the open list by manual order
+
+**Files:**
+- Modify: `src/app/page.tsx`
+
+- [ ] **Step 1: Use `orderOpenTasks`**
+
+In `src/app/page.tsx`, import the sorter and replace the open-list sort. The file becomes:
+
+```tsx
+import { listTasks } from "@/features/tasks/queries";
+import { listGoals } from "@/features/goals/queries";
+import { score } from "@/features/tasks/scorer";
+import { orderOpenTasks } from "@/features/tasks/ordering";
+import { AppShell } from "@/features/tasks/AppShell";
+
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const [tasks, goals] = await Promise.all([listTasks(), listGoals()]);
+  const now = new Date();
+
+  const open = tasks.filter((t) => t.doneAt === null);
+  const orderedOpen = orderOpenTasks(open, now);
+  const scoredOpen = orderedOpen.map((t) => ({ ...t, _score: score(t, now) }));
+  const done = tasks.filter((t) => t.doneAt !== null);
+
+  return <AppShell scoredOpen={scoredOpen} done={done} goals={goals} />;
+}
+```
+
+(Note: `sortByScore` is no longer called directly here — `orderOpenTasks` uses it internally — so it is dropped from this import line, leaving just `score`.)
+
+- [ ] **Step 2: Typecheck + build**
+
+Run: `pnpm typecheck && pnpm build`
+Expected: both succeed. The list now renders positioned tasks first; with no positions yet it is identical to before.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add src/app/page.tsx
+git commit -m "feat(dnd): order the open list by manual position with scorer fallback"
+```
+
+---
+
+### Task 6: `SortableTaskList` component + `@dnd-kit`
+
+**Files:**
+- Modify: `package.json` (via pnpm)
+- Create: `src/features/tasks/SortableTaskList.tsx`
+- Modify: `src/app/globals.css`
+
+- [ ] **Step 1: Install @dnd-kit**
+
+Run: `pnpm add @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities`
+Expected: three packages added. Run `pnpm typecheck` to confirm the install didn't break types.
+
+- [ ] **Step 2: Build the component**
+
+`src/features/tasks/SortableTaskList.tsx`:
+
+```tsx
+"use client";
+
+import { useOptimistic, useTransition } from "react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  sortableKeyboardCoordinates,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import type { Task } from "@/db/schema";
+import type { ScoredTask } from "@/features/constellation/layout";
+import { TaskRow } from "./TaskRow";
+import { moveTask } from "./actions";
+
+function SortableRow({
+  task,
+  isTop,
+  onOpen,
+}: {
+  task: ScoredTask;
+  isTop: boolean;
+  onOpen: (t: Task) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: task.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="sortable-row">
+      <button
+        type="button"
+        className="drag-handle"
+        aria-label="Drag to reorder"
+        {...attributes}
+        {...listeners}
+      >
+        ⠿
+      </button>
+      <div
+        className="sortable-row-body"
+        data-detail-opener
+        onClick={(e) => {
+          const tag = (e.target as HTMLElement).tagName;
+          if (["INPUT", "BUTTON", "TEXTAREA", "SELECT"].includes(tag)) return;
+          onOpen(task);
+        }}
+      >
+        <TaskRow task={task} isTop={isTop} />
+      </div>
+    </div>
+  );
+}
+
+export function SortableTaskList({
+  tasks,
+  onOpen,
+}: {
+  tasks: ScoredTask[];
+  onOpen: (t: Task) => void;
+}) {
+  const [, startTransition] = useTransition();
+  const [optimistic, setOptimistic] = useOptimistic(
+    tasks,
+    (_current, next: ScoredTask[]) => next
+  );
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  function handleDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = optimistic.findIndex((t) => t.id === active.id);
+    const newIndex = optimistic.findIndex((t) => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const next = arrayMove(optimistic, oldIndex, newIndex);
+    const prevId = newIndex > 0 ? next[newIndex - 1]!.id : null;
+    const nextId = newIndex < next.length - 1 ? next[newIndex + 1]!.id : null;
+
+    startTransition(async () => {
+      setOptimistic(next);
+      await moveTask(Number(active.id), prevId, nextId);
+    });
+  }
+
+  return (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={optimistic.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+        {optimistic.map((t, i) => (
+          <SortableRow key={t.id} task={t} isTop={i === 0} onOpen={onOpen} />
+        ))}
+      </SortableContext>
+    </DndContext>
+  );
+}
+```
+
+- [ ] **Step 3: Add drag-handle CSS**
+
+Append to `src/app/globals.css`:
+
+```css
+.sortable-row { display: flex; align-items: stretch; gap: 6px; }
+.sortable-row-body { flex: 1; min-width: 0; }
+.drag-handle {
+  flex-shrink: 0;
+  width: 22px;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: grab;
+  font-size: 15px;
+  line-height: 1;
+  border-radius: 6px;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+}
+.drag-handle:hover { color: var(--text); background: var(--bg); }
+.drag-handle:active { cursor: grabbing; }
+@media (prefers-reduced-motion: reduce) {
+  .sortable-row { transition: none !important; }
+}
+```
+
+- [ ] **Step 4: Typecheck + build**
+
+Run: `pnpm typecheck && pnpm build`
+Expected: both succeed. (Component is not used yet — that's the next two tasks.)
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add package.json pnpm-lock.yaml src/features/tasks/SortableTaskList.tsx src/app/globals.css
+git commit -m "feat(dnd): SortableTaskList (dnd-kit) + drag-handle styles"
+```
+
+---
+
+### Task 7: Wire the Overview list
+
+**Files:**
+- Modify: `src/features/tasks/AppShell.tsx`
+
+- [ ] **Step 1: Render the open list through `SortableTaskList`**
+
+In `src/features/tasks/AppShell.tsx`:
+
+(a) Add the import:
+```tsx
+import { SortableTaskList } from "./SortableTaskList";
+```
+
+(b) Replace the open-task `scoredOpen.map(...)` block inside the `list-pane` section with the sortable list, and update the section label to reflect manual vs ranked. The `list-pane` section's contents become:
+
+```tsx
+                <section className="list-pane">
+                  <AddTaskBar />
+                  <p className="section-label">
+                    {scoredOpen.length === 0
+                      ? "no open tasks"
+                      : `${scoredOpen.length} open · ${
+                          scoredOpen.some((t) => t.position !== null) ? "your order" : "ranked"
+                        }`}
+                  </p>
+                  {scoredOpen.length > 0 && (
+                    <div style={{ marginBottom: 14 }}>
+                      <ExplainStream request={{ kind: "why" }} buttonLabel="Why this order?" />
+                    </div>
+                  )}
+                  {scoredOpen.length === 0 ? (
+                    <p className="empty">Add a task above to get started.</p>
+                  ) : (
+                    <SortableTaskList tasks={scoredOpen} onOpen={setSelected} />
+                  )}
+                  {done.length > 0 && (
+                    <>
+                      <p className="section-label" style={{ marginTop: 28 }}>done · {done.length}</p>
+                      {done.map((t) => (<TaskRow key={t.id} task={t} />))}
+                    </>
+                  )}
+                </section>
+```
+
+(The previous inline `scoredOpen.map(...)` wrapper divs and their click handler are now inside `SortableTaskList`, so they are removed here.)
+
+- [ ] **Step 2: Typecheck + build**
+
+Run: `pnpm typecheck && pnpm build`
+Expected: both succeed.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add src/features/tasks/AppShell.tsx
+git commit -m "feat(dnd): drag-reorder the Overview list"
+```
+
+---
+
+### Task 8: Wire the goal list
+
+**Files:**
+- Modify: `src/features/goals/GoalPage.tsx`
+
+- [ ] **Step 1: Render the goal's open list through `SortableTaskList`**
+
+In `src/features/goals/GoalPage.tsx`:
+
+(a) Add the import:
+```tsx
+import { SortableTaskList } from "@/features/tasks/SortableTaskList";
+```
+
+(b) Replace the open-task `open.map(...)` block with the sortable list, and update the section label. That portion becomes:
+
+```tsx
+      <p className="section-label">
+        {open.length === 0
+          ? "no open tasks"
+          : `${open.length} open · ${
+              open.some((t) => t.position !== null) ? "your order" : "ranked"
+            }`}
+      </p>
+      {open.length > 0 && <SortableTaskList tasks={open} onOpen={onSelectTask} />}
+```
+
+(The previous `open.map(...)` wrapper divs and their click handler are removed — they live in `SortableTaskList` now. The Done section below is unchanged.)
+
+- [ ] **Step 2: Typecheck + build**
+
+Run: `pnpm typecheck && pnpm build`
+Expected: both succeed.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add src/features/goals/GoalPage.tsx
+git commit -m "feat(dnd): drag-reorder tasks within a goal"
+```
+
+---
+
+### Task 9: Verify + production migration + deploy
+
+**Files:** none (verification + ops)
+
+- [ ] **Step 1: Full test suite + typecheck + build**
+
+Run: `pnpm test && pnpm typecheck && pnpm build`
+Expected: all tests pass (including the new `ordering.test.ts`), typecheck clean, build succeeds.
+
+- [ ] **Step 2: Manual smoke test on dev**
+
+Run `docker compose up -d && pnpm dev`, then verify:
+- Overview list shows a drag handle on each row; dragging reorders; label flips to "· your order".
+- Reload → the order persists.
+- Add a task from Overview → it appears at the top.
+- Open a goal → drag-reorder its tasks; reload persists; the same tasks keep that relative order in Overview.
+- Add a task inside a goal → it appears at the top of that goal (and does NOT jump to Overview #1).
+- The top task (first in the list) shows the emphasis ring in both the list and the Priority Map.
+- Map / (map pane of Split) has no drag handles and is unchanged.
+- Clicking a row (not the handle) still opens the detail panel; the title input/checkbox/delete still work.
+
+- [ ] **Step 3: Apply the migration to production (Neon) BEFORE deploying**
+
+Vercel does not auto-migrate, and the live `SELECT *` will expect `position`. With the Neon connection string:
+```bash
+DATABASE_URL="<neon-connection-string>" pnpm db:migrate
+```
+Expected: the `position` migration applies with no error.
+
+- [ ] **Step 4: Merge + deploy**
+
+```bash
+git checkout main
+git merge --no-ff dnd-reordering -m "Merge drag-and-drop task reordering"
+git push origin main
+```
+Expected: Vercel auto-deploys; drag-reordering works on the live site.
+
+- [ ] **Step 5: Update CLAUDE.md**
+
+Add `position` (nullable, manual order) to the `tasks` section of `CLAUDE.md` "Data model essentials", noting manual order wins over the scorer when set. Commit:
+```bash
+git add CLAUDE.md && git commit -m "docs: record tasks.position (manual order) in CLAUDE.md"
+```
+
+---
+
+## Out of scope (per spec)
+
+- "Re-sort by score" escape hatch; per-context ordering; reordering goals in the rail or the done section; drag-to-assign.
+</textarea>
+<script>
+  marked.use({ gfm: true });
+  document.getElementById('out').innerHTML = marked.parse(document.getElementById('src').value);
+  document.title = (document.querySelector('h1')?.textContent || 'Plan');
+</script>
+</body>
+</html>
