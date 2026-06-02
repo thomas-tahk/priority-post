@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, integer, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, jsonb, doublePrecision } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const goals = pgTable("goals", {
@@ -23,6 +23,7 @@ export const tasks = pgTable("tasks", {
   focus: text("focus"),
   pinnedFields: jsonb("pinned_fields").notNull().default(sql`'[]'::jsonb`),
   goalId: integer("goal_id").references(() => goals.id, { onDelete: "set null" }),
+  position: doublePrecision("position"),
 });
 
 export type Task = typeof tasks.$inferSelect;

@@ -15,6 +15,13 @@
       "when": 1780347634792,
       "tag": "0001_strange_kitty_pryde",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780427066515,
+      "tag": "0002_many_roulette",
+      "breakpoints": true
     }
   ]
 }
