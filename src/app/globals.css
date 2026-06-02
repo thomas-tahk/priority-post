@@ -917,3 +917,10 @@ main.view-list .list-pane {
 .pop button { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: transparent; border: none; padding: 8px 10px; border-radius: 7px; font: inherit; font-size: 13px; color: var(--text); cursor: pointer; }
 .pop button:hover { background: var(--bg); }
 .pop .dot { width: 9px; height: 9px; border-radius: 50%; }
+
+/* Goals phase-a: delete dialog disposition */
+.disposition { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.disp-opt { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: 9px; padding: 11px 13px; cursor: pointer; font-size: 13px; }
+.disp-opt.sel { border-color: var(--accent); background: var(--bg); }
+.disp-opt input { margin: 0; }
+.disp-opt select { margin-left: auto; font: inherit; font-size: 12px; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
