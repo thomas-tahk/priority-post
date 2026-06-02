@@ -913,7 +913,7 @@ main.view-list .list-pane {
 .swatch { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
 .swatch.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--accent); }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
-.pop { position: absolute; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 5px; z-index: 45; min-width: 180px; }
+.pop { position: absolute; top: calc(100% + 4px); left: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 5px; z-index: 45; min-width: 180px; }
 .pop button { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: transparent; border: none; padding: 8px 10px; border-radius: 7px; font: inherit; font-size: 13px; color: var(--text); cursor: pointer; }
 .pop button:hover { background: var(--bg); }
 .pop .dot { width: 9px; height: 9px; border-radius: 50%; }
