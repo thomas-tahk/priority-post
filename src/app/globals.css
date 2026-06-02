@@ -931,3 +931,28 @@ main.view-list .list-pane {
 .disp-opt.sel { border-color: var(--accent); background: var(--bg); }
 .disp-opt input { margin: 0; }
 .disp-opt select { margin-left: auto; font: inherit; font-size: 12px; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+
+/* dnd-reordering: drag-handle + sortable row */
+.sortable-row { display: flex; align-items: stretch; gap: 6px; }
+.sortable-row-body { flex: 1; min-width: 0; }
+.drag-handle {
+  flex-shrink: 0;
+  width: 22px;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: grab;
+  font-size: 15px;
+  line-height: 1;
+  border-radius: 6px;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+}
+.drag-handle:hover { color: var(--text); background: var(--bg); }
+.drag-handle:active { cursor: grabbing; }
+@media (prefers-reduced-motion: reduce) {
+  .sortable-row { transition: none !important; }
+}
