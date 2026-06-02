@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import type { Task, Goal } from "@/db/schema";
 import type { ScoredTask } from "@/features/constellation/layout";
 import { TaskRow } from "@/features/tasks/TaskRow";
+import { SortableTaskList } from "@/features/tasks/SortableTaskList";
 import { AddTaskBar } from "@/features/tasks/AddTaskBar";
 import { goalStats } from "./counts";
 import { startedAgo } from "./dates";
@@ -68,20 +69,14 @@ export function GoalPage({
 
       <AddTaskBar goalId={goal.id} placeholder="add a task to this goal…" hint={`⏎ — assigned to ${goal.name}`} />
 
-      <p className="section-label">{open.length === 0 ? "no open tasks" : `${open.length} open · ranked`}</p>
-      {open.map((t, i) => (
-        <div
-          key={t.id}
-          data-detail-opener
-          onClick={(e) => {
-            const tag = (e.target as HTMLElement).tagName;
-            if (["INPUT", "BUTTON", "TEXTAREA", "SELECT"].includes(tag)) return;
-            onSelectTask(t);
-          }}
-        >
-          <TaskRow task={t} isTop={i === 0} />
-        </div>
-      ))}
+      <p className="section-label">
+        {open.length === 0
+          ? "no open tasks"
+          : `${open.length} open · ${
+              open.some((t) => t.position !== null) ? "your order" : "ranked"
+            }`}
+      </p>
+      {open.length > 0 && <SortableTaskList tasks={open} onOpen={onSelectTask} />}
 
       {done.length > 0 && (
         <>
