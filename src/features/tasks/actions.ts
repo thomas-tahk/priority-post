@@ -198,7 +198,8 @@ export async function moveTask(
     return row?.position ?? null;
   };
 
-  const newPos = midpoint(await posOf(prevId), await posOf(nextId));
+  const [prevPos, nextPos] = await Promise.all([posOf(prevId), posOf(nextId)]);
+  const newPos = midpoint(prevPos, nextPos);
   await db.update(tasks).set({ position: newPos }).where(eq(tasks.id, taskId));
   revalidatePath("/");
 }
