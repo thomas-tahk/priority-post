@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import type { Task } from "@/db/schema";
+import type { Task, Goal } from "@/db/schema";
+import { GoalPicker } from "@/features/goals/GoalPicker";
 import { CATEGORY_LABELS, type Category } from "./categories";
 import {
   addTaskCategory,
@@ -47,9 +48,11 @@ function formatEstTime(min: number | null): string {
 
 export function DetailPanel({
   task,
+  goals,
   onClose,
 }: {
   task: Task | null;
+  goals: Goal[];
   onClose: () => void;
 }) {
   const [, startTransition] = useTransition();
@@ -173,6 +176,11 @@ export function DetailPanel({
             onClose={() => setPicking(false)}
           />
         )}
+      </div>
+
+      <div className="field-block">
+        <label className="field-label">Goal</label>
+        <GoalPicker taskId={task.id} goals={goals} currentGoalId={task.goalId} />
       </div>
 
       <div className="field-block">

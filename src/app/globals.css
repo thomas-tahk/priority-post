@@ -918,6 +918,13 @@ main.view-list .list-pane {
 .pop button:hover { background: var(--bg); }
 .pop .dot { width: 9px; height: 9px; border-radius: 50%; }
 
+/* Goals phase-a: goal picker in detail panel */
+.goal-field { display: flex; align-items: center; gap: 8px; }
+.goal-select { flex: 1; display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; background: var(--bg); font-size: 13px; font-family: inherit; text-align: left; color: var(--text); }
+.goal-select .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.goal-select:hover { border-color: var(--border-strong); }
+.goal-select .dim { color: var(--text-faint); }
+
 /* Goals phase-a: delete dialog disposition */
 .disposition { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
 .disp-opt { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: 9px; padding: 11px 13px; cursor: pointer; font-size: 13px; }
