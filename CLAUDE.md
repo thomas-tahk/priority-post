@@ -65,6 +65,9 @@ Feature folders own their own components, server actions, and tests. Cross-featu
 - `start_at` (nullable) for scheduled tasks.
 - `goal_id` (nullable int, FK → `goals.id`, `ON DELETE SET NULL`) — the goal a task belongs to, if any.
   Tasks can be goal-less; assignment is contextual at creation and editable later.
+- `position` (nullable float) — manual drag order. Null = unordered (scorer decides). When any open
+  task has a position, the open list sorts by position ("your order") and that wins over the scorer;
+  unpositioned tasks fall back to scorer ranking. One global order; goal pages show it filtered.
 
 `goals` table (Phase A):
 - `id`, `name` (not null), `description` (nullable), `color` (text — one of the 7 category color keys,
