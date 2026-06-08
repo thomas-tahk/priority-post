@@ -26,7 +26,20 @@ export const tasks = pgTable("tasks", {
   position: doublePrecision("position"),
 });
 
+// Phase 3: dedup log for the Discord bot's due-soon / overdue pings. Each
+// (task, kind) is recorded once so a scheduled tick never re-pings the same
+// event. Lives in Postgres (not bot memory) so the bot is restart-safe.
+export const sentReminders = pgTable("sent_reminders", {
+  id: serial("id").primaryKey(),
+  taskId: integer("task_id")
+    .notNull()
+    .references(() => tasks.id, { onDelete: "cascade" }),
+  kind: text("kind").notNull(), // 'due_soon' | 'overdue'
+  sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type Task = typeof tasks.$inferSelect;
 export type NewTask = typeof tasks.$inferInsert;
 export type Goal = typeof goals.$inferSelect;
 export type NewGoal = typeof goals.$inferInsert;
+export type SentReminder = typeof sentReminders.$inferSelect;
