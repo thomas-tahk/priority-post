@@ -1,0 +1,141 @@
+# Discord Planner (Phase 3, iteration 0) — Design
+
+**Date:** 2026-06-08
+**Status:** Approved shape (owner AFK; pre-authorized build of a first iteration).
+**Supersedes the old "AI at arm's length" stance** for the alert/agent layer. AI is now a
+first-class part of priority-post: it sends Discord alerts, generates/evaluates tasks & goals,
+and reads progress to keep the owner accountable and using the app as intended. In-app AI stays
+quiet/opt-in as it is today.
+
+## 1. What we're building
+
+A two-way Discord bot that makes priority-post a thing the owner *engages with daily*:
+
+- **Proactive (unprompted):** one **08:00 daily digest** (today's top focus + what's slipping)
+  plus **due-soon / just-overdue pings** for tasks that have a `start_at`.
+- **Conversational (you talk back):** natural language in a set Discord channel — "what's next?",
+  "add: call dentist", "reschedule the taxes task to Friday", "mark the gym task done",
+  "plan my day", "break down the goal 'ship v3'", "how am I doing this week?". The bot interprets,
+  acts on your real tasks via the web app, and replies with what it did.
+
+This is **iteration 0**: one thin vertical slice through every capability the owner asked for
+(generate, converse, proactive accountability, progress evaluation), not a complete build of each.
+
+## 2. Architecture — one brain, one DB
+
+priority-post becomes **two deployments** sharing the existing Neon Postgres:
+
+```
+ Discord  ◄────►  BOT (always-on: Railway)               WEB APP (Vercel, unchanged surface)
+                  · discord.js gateway client            · NEW: /api/internal/* (shared-secret auth)
+                  · Anthropic tool-use agent loop        · reuses triage (Haiku), scorer, task/goal logic
+                  · node-cron: 08:00 digest + due-soon   · digest/progress = pure, unit-tested fns
+                  · tools = HTTP calls to the web API     · decompose/progress prose via Anthropic (server)
+                          │                                        │
+                          └───────────── HTTPS ────────────────────┘
+                                                                   │
+                                                              Neon Postgres
+```
+
+**Why this split (vs. a shared `packages/core`):** the web app already owns triage, the scorer,
+and all task/goal mutations. We expose a *small* authenticated internal API over functions that
+already exist — barely touching working code — instead of ripping that logic into a framework-agnostic
+package and giving two processes direct DB access. The bot stays thin and replaceable.
+
+**Why the agent loop lives in the bot, not on Vercel:** a multi-turn tool-use loop can exceed Vercel's
+serverless timeout. The bot host is always-on with no timeout, so the conversational orchestration
+belongs there. Crucially this does **not** duplicate existing AI — triage, scorer, decompose, and
+progress prose all stay in the web app. The bot's only AI is the new conversation/orchestration layer.
+
+### Trust / write boundary
+The bot **acts directly and echoes what it did** ("✅ added — triaged as health, due Fri") to match the
+low-friction vibe. Only **delete** asks for confirmation. "Undo" = just tell it ("put that back").
+
+## 3. Web app changes
+
+### 3a. Internal API (`src/app/api/internal/*`)
+All routes require header `x-internal-secret: <INTERNAL_API_SECRET>` (constant-time compare). They are
+exempted from the basic-auth gate. `runtime = "nodejs"`, `dynamic = "force-dynamic"`.
+
+| Method & path | Purpose | Returns |
+|---|---|---|
+| `GET  /api/internal/tasks` | Open tasks, scorer-ranked (compact shape) | `{ tasks: CompactTask[] }` |
+| `POST /api/internal/tasks` | Create task (reuses createTask + async triage) | `{ id }` |
+| `PATCH /api/internal/tasks/:id` | Reschedule (`startAt`), complete (`done`), retitle | `{ ok: true }` |
+| `DELETE /api/internal/tasks/:id` | Delete (bot confirms first) | `{ ok: true }` |
+| `GET  /api/internal/digest` | Today's plan + slipping items (pure `buildDigest`) | `Digest` |
+| `GET  /api/internal/due-soon` | Tasks with `start_at` entering due-soon/overdue, **not yet pinged** | `{ events: DueEvent[] }` |
+| `POST /api/internal/reminders/mark` | Record that a ping was sent (dedup) | `{ ok: true }` |
+| `POST /api/internal/goals/decompose` | AI proposes sub-tasks for a goal (NOT auto-created) | `{ proposals: string[] }` |
+| `GET  /api/internal/progress` | AI progress read over recent activity | `{ summary: string, stats: {...} }` |
+
+`CompactTask = { id, title, categories, urgency, importance, estTimeMin, focus, startAt, goalId, score }`.
+
+### 3b. Digest / progress logic (pure functions, unit-tested)
+- `buildDigest(tasks, now): Digest` — `Digest = { top: CompactTask[3], slipping: SlippingItem[] }`.
+  - `top` = top 3 open tasks by `sortByScore`.
+  - `slipping` = open tasks overdue by ≥1 day (`startAt < now - 24h`), plus goals with no task
+    completed in ≥7 days (`goalsIdle`). Pure; no DB calls inside.
+- `dueWindow(task, now): "due_soon" | "overdue" | null` — `due_soon` when `start_at` within the next
+  ~2h and future; `overdue` when `start_at` just passed (≤24h ago). Drives `/due-soon`.
+- `buildProgressStats(tasks, since)` — counts: completed, created, open, rolled-over, idle goals.
+  The prose summary is generated by Anthropic from these stats server-side.
+
+### 3c. Schema — `sent_reminders` (new table; migration via drizzle-kit)
+```
+sent_reminders ( id serial pk, task_id int fk->tasks on delete cascade,
+                 kind text,            -- 'due_soon' | 'overdue'
+                 sent_at timestamptz default now() )
+```
+`/due-soon` left-joins this so each (task, kind) pings at most once. `/reminders/mark` inserts rows.
+*(Schema change — flagged per CLAUDE.md "ask first"; approved as part of this spec.)*
+
+## 4. The bot (`bot/` — new package in the pnpm workspace)
+
+Node/TS, `discord.js` + `@anthropic-ai/sdk`. Listens only to `DISCORD_CHANNEL_ID`, only from
+`OWNER_DISCORD_ID`. Ignores everything else.
+
+### 4a. Conversational loop
+On each owner message: run an Anthropic tool-use loop (bounded, ≤4 tool rounds) where each tool is a
+typed HTTP call to the internal API. Tools:
+`list_tasks`, `add_task`, `reschedule_task`, `complete_task`, `delete_task` (asks first),
+`decompose_goal`, `plan_my_day` (= list_tasks + a focus suggestion), `get_progress`.
+The model's final text is posted back to the channel. A typing indicator shows while it works.
+
+### 4b. Scheduler (node-cron, in-process)
+- **08:00 local daily:** `GET /digest` → format → post.
+- **every 15 min:** `GET /due-soon` → for each event, post a ping → `POST /reminders/mark`.
+All times use the bot host's timezone (set `TZ` env). Restart-safe because dedup state lives in
+`sent_reminders`, not bot memory.
+
+### 4c. Config (env)
+`DISCORD_BOT_TOKEN`, `DISCORD_CHANNEL_ID`, `OWNER_DISCORD_ID`, `WEB_BASE_URL`,
+`INTERNAL_API_SECRET`, `ANTHROPIC_API_KEY`, `DIGEST_HOUR` (default 8), `TZ`.
+
+## 5. Error handling
+- Internal API: bad/absent secret → 401; bad body → 400; unknown task → 404; never leak stack traces.
+- Bot: API call fails → reply "couldn't reach the planner, try again" + log; never crash the process
+  (catch around the message handler and each cron tick). Anthropic failure → graceful apology.
+- Triage stays async/non-blocking on create, exactly as the web app does today.
+
+## 6. Testing
+- **Pure fns** (`buildDigest`, `dueWindow`, `buildProgressStats`): Vitest table-driven — primary safety net.
+- **Internal API:** request-shape + auth tests; DB-touching tests use the existing `priority_post_test`
+  Docker DB convention (no DB mocks). Skipped automatically when no test DB is reachable.
+- **Bot:** the tool→HTTP mapping is tested against a fake API client (no real Discord/Anthropic in CI).
+  The live LLM conversation is verified manually via the runbook.
+
+## 7. Explicitly deferred (NOT iteration 0)
+Google Calendar read, replan-around-event, iOS Shortcut capture, multi-user, in-app chat UI,
+richer accountability cadence (evening check-in), bot-initiated goal creation. The agent-tool layer is
+shaped so these bolt on later without rework.
+
+## 8. Live-wiring runbook (needs owner's hands — can't be automated)
+1. Create a Discord application + bot, enable **Message Content Intent**, invite to your server,
+   copy the bot token and the target channel id + your user id.
+2. Set web env (`INTERNAL_API_SECRET`) in Vercel; redeploy.
+3. Run the `sent_reminders` migration against Neon (`pnpm db:migrate` with prod `DATABASE_URL`).
+4. Deploy `bot/` to Railway; set all env vars from §4c; set `TZ` to your timezone.
+5. Say "what's next?" in the channel to smoke-test; wait for the 08:00 digest.
+
+Until those steps run, the bot is fully built and unit-tested but not live.
