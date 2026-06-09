@@ -6,6 +6,7 @@
   "description": "Discord planner bot for priority-post — proactive alerts + conversational task management.",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "repl": "tsx src/repl.ts",
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

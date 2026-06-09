@@ -35,6 +35,19 @@ pnpm dev               # or: pnpm start
 `pnpm test` runs the unit tests (formatter + agent loop with fakes — no live Discord/Anthropic).
 `pnpm typecheck` runs `tsc --noEmit`.
 
+### Test the agent without Discord
+
+`pnpm repl` drives the agent loop from the terminal — same tool-use → `/api/internal/*` → DB chain
+the bot uses, just no Discord gateway. Point it at a **local** web app (the agent can create, complete,
+and delete real tasks), and it only needs three env vars:
+
+```bash
+WEB_BASE_URL=http://localhost:3000 INTERNAL_API_SECRET=testsecret ANTHROPIC_API_KEY=sk-... pnpm repl
+```
+
+Then type like you would in Discord: `what's next?`, `add: call dentist friday 3pm`, `how am I doing?`.
+`/exit` to quit.
+
 ## Deploy (Railway)
 
 1. New Railway service from this repo, root directory `bot/`.
