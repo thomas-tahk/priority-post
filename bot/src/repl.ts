@@ -33,7 +33,12 @@ async function main() {
   console.log(`planner REPL → ${baseUrl}   (Ctrl-C or /exit to quit)\n`);
 
   while (true) {
-    const line = (await rl.question("you › ")).trim();
+    let line: string;
+    try {
+      line = (await rl.question("you › ")).trim();
+    } catch {
+      break; // stdin closed / EOF (e.g. piped input exhausted)
+    }
     if (!line) continue;
     if (line === "/exit" || line === "/quit") break;
 
