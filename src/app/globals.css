@@ -932,27 +932,29 @@ main.view-list .list-pane {
 .disp-opt input { margin: 0; }
 .disp-opt select { margin-left: auto; font: inherit; font-size: 12px; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
 
-/* dnd-reordering: drag-handle + sortable row */
-.sortable-row { display: flex; align-items: stretch; gap: 6px; }
+/* dnd-reordering: whole-card drag surface + grip hint */
+.sortable-row { display: flex; align-items: stretch; gap: 6px; cursor: grab; }
+.sortable-row:active { cursor: grabbing; }
 .sortable-row-body { flex: 1; min-width: 0; }
+/* Controls inside the card keep their own pointer behavior. */
+.sortable-row :is(input, button) { cursor: auto; }
+.sortable-row .checkbox, .sortable-row .icon-btn, .sortable-row .add-tag, .sortable-row .chip-x {
+  cursor: pointer;
+}
+/* ⠿ is a non-interactive hint that the card is draggable. */
 .drag-handle {
   flex-shrink: 0;
-  width: 22px;
-  border: none;
-  background: transparent;
+  width: 18px;
   color: var(--text-faint);
-  cursor: grab;
   font-size: 15px;
   line-height: 1;
-  border-radius: 6px;
   align-self: stretch;
   display: flex;
   align-items: center;
   justify-content: center;
-  touch-action: none;
+  transition: color 0.12s;
 }
-.drag-handle:hover { color: var(--text); background: var(--bg); }
-.drag-handle:active { cursor: grabbing; }
+.sortable-row:hover .drag-handle { color: var(--text-dim); }
 @media (prefers-reduced-motion: reduce) {
   .sortable-row { transition: none !important; }
 }
