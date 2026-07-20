@@ -958,3 +958,113 @@ main.view-list .list-pane {
 @media (prefers-reduced-motion: reduce) {
   .sortable-row { transition: none !important; }
 }
+
+/* ============================================================
+   Mobile (≤768px)
+   The desktop layout is fixed-width: a 240px goal rail + a 420px
+   detail panel + a two-column split view. On a 390px phone that
+   leaves ~150px for content, so below the breakpoint the rail
+   becomes an off-canvas drawer, the panel becomes a bottom sheet,
+   and the page scrolls as one column instead of nested panes.
+   ============================================================ */
+
+/* Drawer trigger — desktop never shows it. */
+.rail-toggle {
+  display: none;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 19px;
+  line-height: 1;
+  padding: 4px 6px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+@media (max-width: 768px) {
+  .rail-toggle { display: block; }
+
+  /* Header: hamburger + title + theme. The clock is the first thing
+     to go — it costs a column and the phone already shows the time. */
+  .app-header {
+    grid-template-columns: auto 1fr auto;
+    padding: 12px 14px;
+    gap: 10px;
+  }
+  .app-clock { display: none; }
+  .split-btn { display: none; }
+  .view-toggle button { padding: 5px 9px; font-size: 12px; }
+
+  /* One scrolling column. Nested scroll containers are miserable on touch. */
+  .app-body { display: block; height: auto; }
+  .app-content { overflow-y: visible; }
+  main,
+  main.view-list,
+  main.view-constellation,
+  main.view-split {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  /* Split can't work at this width — degrade it to the list. */
+  main.view-split .constellation-pane { display: none; }
+
+  .list-pane,
+  main.view-list .list-pane {
+    overflow-y: visible;
+    border-right: none;
+    max-width: none;
+    padding: 16px 14px;
+  }
+  .pane { padding: 16px 14px 60px; }
+
+  /* Grid gives the constellation its height on desktop; here nothing does. */
+  .constellation-pane {
+    min-height: 65dvh;
+    padding: 16px 14px;
+  }
+
+  /* Goal rail → off-canvas drawer. Overlays the header deliberately:
+     .app-body and .panel disagree about header height (61 vs 65px),
+     so anchoring to top:0 sidesteps that discrepancy entirely. */
+  .rail {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: -260px;
+    width: 240px;
+    z-index: 40;
+    transition: left 0.2s ease;
+    padding-top: 18px;
+  }
+  .rail.open { left: 0; box-shadow: var(--shadow-lg); }
+  .rail-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 38;
+  }
+
+  /* Detail panel → bottom sheet. 420px is wider than the viewport. */
+  .panel {
+    top: auto;
+    left: 0;
+    right: 0;
+    width: auto;
+    bottom: -100%;
+    height: 85dvh;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    transition: bottom 0.22s ease;
+    padding: 20px 16px 40px;
+  }
+  .panel.open { bottom: 0; }
+
+  /* Touch targets: 44px is the platform minimum. */
+  .rail-item { padding: 11px 10px; font-size: 14px; }
+  .panel .close { top: 10px; right: 12px; padding: 6px 10px; }
+}
+
+@media (max-width: 768px) and (prefers-reduced-motion: reduce) {
+  .rail, .panel { transition: none; }
+}

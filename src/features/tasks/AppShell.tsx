@@ -28,6 +28,8 @@ export function AppShell({
   const [selected, setSelected] = useState<Task | null>(null);
   const [selectedGoalId, setSelectedGoalId] = useState<number | null>(null);
   const [newGoalOpen, setNewGoalOpen] = useState(false);
+  // Mobile only: the goal rail is an off-canvas drawer. Desktop CSS ignores this.
+  const [railOpen, setRailOpen] = useState(false);
 
   useEffect(() => { setView(readStoredView()); }, []);
 
@@ -55,15 +57,22 @@ export function AppShell({
 
   return (
     <>
-      <Header view={view} onViewChange={setView} showViewToggle={selectedGoalId === null} />
+      <Header
+        view={view}
+        onViewChange={setView}
+        showViewToggle={selectedGoalId === null}
+        onMenuClick={() => setRailOpen(true)}
+      />
       <div className="app-body">
+        {railOpen && <div className="rail-scrim" onClick={() => setRailOpen(false)} />}
         <GoalRail
           goals={goals}
           overviewCount={scoredOpen.length}
           countsByGoal={countsByGoal}
           selectedGoalId={selectedGoalId}
-          onSelect={setSelectedGoalId}
-          onNewGoal={() => setNewGoalOpen(true)}
+          onSelect={(id) => { setSelectedGoalId(id); setRailOpen(false); }}
+          onNewGoal={() => { setNewGoalOpen(true); setRailOpen(false); }}
+          open={railOpen}
         />
         <div className="app-content">
           {activeGoal ? (

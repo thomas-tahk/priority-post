@@ -13,10 +13,12 @@ export function Header({
   view,
   onViewChange,
   showViewToggle = true,
+  onMenuClick,
 }: {
   view: ViewMode;
   onViewChange: (v: ViewMode) => void;
   showViewToggle?: boolean;
+  onMenuClick?: () => void;
 }) {
   const [theme, setTheme] = useState<ThemeMode>("system");
 
@@ -49,6 +51,14 @@ export function Header({
 
   return (
     <header className="app-header">
+      <button
+        type="button"
+        className="rail-toggle"
+        onClick={onMenuClick}
+        aria-label="Open goals menu"
+      >
+        ☰
+      </button>
       <h1>
         priority-post
         <span className="dim">v1</span>
@@ -73,7 +83,7 @@ export function Header({
             </button>
             <button
               type="button"
-              className={view === "split" ? "active" : ""}
+              className={`split-btn${view === "split" ? " active" : ""}`}
               onClick={() => persistView("split", onViewChange)}
             >
               Split
