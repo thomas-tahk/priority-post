@@ -28,6 +28,20 @@ function fakeAnthropic(scripted: unknown[]): Anthropic {
   return { messages: { create: async () => scripted[i++] } } as unknown as Anthropic;
 }
 
+// Same, but keeps the request params so we can assert on what was sent.
+function recordingAnthropic(): { anthropic: Anthropic; requests: Record<string, unknown>[] } {
+  const requests: Record<string, unknown>[] = [];
+  const anthropic = {
+    messages: {
+      create: async (params: Record<string, unknown>) => {
+        requests.push(params);
+        return { stop_reason: "end_turn", content: [{ type: "text", text: "ok" }] };
+      },
+    },
+  } as unknown as Anthropic;
+  return { anthropic, requests };
+}
+
 describe("runAgent", () => {
   it("executes a tool call then returns the model's final reply", async () => {
     const { api, calls } = fakeApi();
@@ -65,5 +79,25 @@ describe("runAgent", () => {
 
     expect(calls.find((c) => c[0] === "deleteTask")).toBeUndefined();
     expect(reply).toContain("Confirm");
+  });
+
+  it("passes temperature through when the caller pins it", async () => {
+    const { api } = fakeApi();
+    const { anthropic, requests } = recordingAnthropic();
+
+    await runAgent([{ role: "user", content: "hi" }], api, anthropic, new Date(), 0);
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.temperature).toBe(0);
+  });
+
+  it("omits temperature by default, leaving production behavior unchanged", async () => {
+    const { api } = fakeApi();
+    const { anthropic, requests } = recordingAnthropic();
+
+    await runAgent([{ role: "user", content: "hi" }], api, anthropic, new Date());
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).not.toHaveProperty("temperature");
   });
 });

@@ -58,3 +58,6 @@ postgres-data/
 
 # local Claude Code agent state (worktrees, settings, transcripts)
 .claude/
+
+# eval reports are generated; commit only the ones worth keeping as a track record
+bot/eval/reports/

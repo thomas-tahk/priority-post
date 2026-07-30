@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { PlannerApi } from "./api.js";
 
-const MODEL = "claude-sonnet-4-6";
+export const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 1024;
 const MAX_ROUNDS = 5;
 
@@ -103,12 +103,16 @@ function textOf(content: Anthropic.ContentBlock[]): string {
  * Run one conversational turn. `history` is the running message list (caller has
  * already appended the new user message). Returns the reply text and the updated
  * message list (including assistant + tool turns) so the caller can persist it.
+ *
+ * `temperature` is for the eval harness, which needs reproducible runs. Omitting it
+ * leaves the request exactly as production sends it (API default).
  */
 export async function runAgent(
   history: Anthropic.MessageParam[],
   api: PlannerApi,
   anthropic: Anthropic,
-  now: Date
+  now: Date,
+  temperature?: number
 ): Promise<{ reply: string; messages: Anthropic.MessageParam[] }> {
   const messages: Anthropic.MessageParam[] = [...history];
 
@@ -119,6 +123,7 @@ export async function runAgent(
       system: systemPrompt(now),
       tools: TOOLS,
       messages,
+      ...(temperature === undefined ? {} : { temperature }),
     });
     messages.push({ role: "assistant", content: res.content });
 
