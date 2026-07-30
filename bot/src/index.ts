@@ -48,7 +48,15 @@ async function postToChannel(text: string): Promise<void> {
 
 client.once(Events.ClientReady, (c) => {
   console.log(`priority-post bot ready as ${c.user.tag}`);
-  startScheduler({ api, send: postToChannel, digestHour: config.digestHour, timezone: config.timezone });
+  startScheduler({
+    api,
+    send: postToChannel,
+    digestHour: config.digestHour,
+    digestMinute: config.digestMinute,
+    activeStartHour: config.activeStartHour,
+    activeEndHour: config.activeEndHour,
+    timezone: config.timezone,
+  });
 });
 
 client.on(Events.MessageCreate, async (msg) => {

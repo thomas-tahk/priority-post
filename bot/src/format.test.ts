@@ -19,18 +19,25 @@ function task(over: Partial<CompactTask> = {}): CompactTask {
 }
 
 describe("formatDigest", () => {
-  it("renders top focus and slipping sections", () => {
+  it("renders tonight's focus and what slipped", () => {
     const out = formatDigest({
       top: [task({ id: 1, title: "Write the report" })],
       overdueTasks: [task({ id: 2, title: "Pay taxes", startAt: "2026-06-01T10:00:00Z" })],
       idleGoals: [{ id: 3, name: "Launch newsletter", idleDays: 9 }],
     });
-    expect(out).toContain("Top focus");
+    expect(out).toContain("Worth doing tonight");
     expect(out).toContain("Write the report");
-    expect(out).toContain("Slipping");
+    expect(out).toContain("Slipped today");
     expect(out).toContain("Pay taxes");
     expect(out).toContain("Launch newsletter");
     expect(out).toContain("9d");
+  });
+
+  it("frames the digest as an evening nudge, not a morning one", () => {
+    const out = formatDigest({ top: [task()], overdueTasks: [], idleGoals: [] });
+    expect(out).toMatch(/tonight/i);
+    expect(out).not.toMatch(/morning/i);
+    expect(out).not.toMatch(/here's today/i);
   });
 
   it("handles an empty list", () => {

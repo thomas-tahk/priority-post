@@ -7,13 +7,13 @@ function line(t: CompactTask): string {
 }
 
 export function formatDigest(d: Digest): string {
-  const parts: string[] = ["☀️ **Morning. Here's today.**"];
+  const parts: string[] = ["🌆 **Evening. Here's tonight.**"];
 
   if (d.top.length === 0) parts.push("\nNo open tasks — add one and I'll triage it.");
-  else parts.push("\n__Top focus__\n" + d.top.map(line).join("\n"));
+  else parts.push("\n__Worth doing tonight__\n" + d.top.map(line).join("\n"));
 
   if (d.overdueTasks.length > 0) {
-    parts.push("\n__Slipping__\n" + d.overdueTasks.map(line).join("\n"));
+    parts.push("\n__Slipped today__\n" + d.overdueTasks.map(line).join("\n"));
   }
   if (d.idleGoals.length > 0) {
     parts.push(
