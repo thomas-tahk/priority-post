@@ -15,7 +15,7 @@ import { MODEL, runAgent } from "../src/agent.js";
 import { CASES } from "./cases.js";
 import { renderScorecard } from "./report.js";
 import { erroredCase, scoreCase, toHistory } from "./score.js";
-import { FIXED_NOW, makeWorld } from "./world.js";
+import { FIXED_NOW, makeWorld, timezoneMismatch } from "./world.js";
 import type { CaseResult, RunMeta } from "./types.js";
 
 const TEMPERATURE = 0;
@@ -50,6 +50,12 @@ async function runCase(caseDef: (typeof CASES)[number], anthropic: Anthropic): P
 }
 
 async function main(): Promise<void> {
+  const zoneProblem = timezoneMismatch(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  if (zoneProblem) {
+    console.error(zoneProblem);
+    process.exit(1);
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     console.error(

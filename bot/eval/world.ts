@@ -10,6 +10,25 @@ export const TIMEZONE = "America/Denver";
 /** Monday, 2026-07-20, 18:00 Mountain. So "friday 3pm" means 2026-07-24T15:00:00-06:00. */
 export const FIXED_NOW = new Date("2026-07-20T18:00:00-06:00");
 
+/**
+ * The agent infers the owner's UTC offset from `now.toString()` in its system
+ * prompt, which renders in the PROCESS timezone — there is no explicit timezone
+ * contract. Run the eval in any other zone and every expected datetime is off by
+ * the offset difference, producing a pile of failures that look like bad time
+ * parsing but are really a misconfigured harness. Fail loudly instead.
+ *
+ * Returns null when the zone is right, or an explanation when it is not.
+ */
+export function timezoneMismatch(actualZone: string): string | null {
+  if (actualZone === TIMEZONE) return null;
+  return (
+    `Eval must run in ${TIMEZONE}, but this process resolved to ${actualZone}.\n` +
+    `The agent reads the owner's offset from the process clock, so every expected ` +
+    `datetime would be scored against the wrong offset.\n` +
+    `Re-run with TZ=${TIMEZONE} (the \`pnpm eval\` script already sets it).`
+  );
+}
+
 type Row = CompactTask & { done: boolean };
 type Goal = { id: number; name: string; idleDays: number; idle: boolean };
 

@@ -10,7 +10,7 @@
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "eval": "tsx eval/run.ts"
+    "eval": "TZ=America/Denver tsx eval/run.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",

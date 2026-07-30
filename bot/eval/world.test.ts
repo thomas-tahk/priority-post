@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type Anthropic from "@anthropic-ai/sdk";
-import { FIXED_NOW, makeWorld, recordedCallsFrom, TIMEZONE } from "./world.js";
+import { FIXED_NOW, makeWorld, recordedCallsFrom, timezoneMismatch, TIMEZONE } from "./world.js";
 
 describe("the fixture world", () => {
   it("is pinned to a Monday 6pm Mountain, so 'friday 3pm' has one right answer", () => {
@@ -91,6 +91,23 @@ describe("the fixture world applies mutations in memory", () => {
     // getProgress and decomposeGoal are the two that would otherwise call out.
     await expect(api.getProgress(7)).resolves.toHaveProperty("stats");
     await expect(api.decomposeGoal({ goalId: 1 })).resolves.toBeInstanceOf(Array);
+  });
+});
+
+describe("timezoneMismatch", () => {
+  it("accepts the zone the fixture world is written in", () => {
+    expect(timezoneMismatch("America/Denver")).toBeNull();
+  });
+
+  it("explains the mismatch rather than letting the run score garbage", () => {
+    // The agent reads the owner's offset out of now.toString(), which renders in
+    // the PROCESS timezone. Run the eval anywhere else and every expected
+    // datetime is off by the offset difference — 13 bogus failures, no clue why.
+    const msg = timezoneMismatch("America/Los_Angeles");
+    expect(msg).not.toBeNull();
+    expect(msg).toContain("America/Los_Angeles");
+    expect(msg).toContain("America/Denver");
+    expect(msg).toContain("TZ=");
   });
 });
 
