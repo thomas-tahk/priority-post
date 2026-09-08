@@ -1,0 +1,330 @@
+<title>Foundry in the List</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#fafaf8; --surface:#ffffff; --surface-2:#f4f3ee;
+  --border:#e7e5e0; --border-strong:#d8d6d0;
+  --text:#1a1a1a; --text-dim:#6b6963; --text-faint:#a8a59c;
+  --accent:#1a1a1a;
+  --shadow:0 1px 2px rgba(0,0,0,.04), 0 1px 8px rgba(0,0,0,.03);
+  --shadow-lg:0 4px 14px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.04);
+  --cat-work:#2563eb; --cat-errands:#0891b2; --cat-side_project:#db2777; --cat-health:#16a34a;
+  --foundry:#b45309;
+  --danger:#dc2626;
+  --page-ink:#211d18; --page-rule:#e2ded6;
+  --app:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f0f11; --surface:#1a1a1d; --surface-2:#16161a;
+    --border:#2a2a30; --border-strong:#3a3a42;
+    --text:#f0efe9; --text-dim:#a3a299; --text-faint:#6b6963;
+    --accent:#f0efe9;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 1px 8px rgba(0,0,0,.3);
+    --shadow-lg:0 6px 18px rgba(0,0,0,.5), 0 1px 3px rgba(0,0,0,.3);
+    --cat-work:#3b82f6; --cat-errands:#06b6d4; --cat-side_project:#ec4899; --cat-health:#22c55e;
+    --foundry:#d97706;
+    --danger:#f87171;
+    --page-ink:#efece5; --page-rule:#2a2a30;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f0f11; --surface:#1a1a1d; --surface-2:#16161a;
+  --border:#2a2a30; --border-strong:#3a3a42;
+  --text:#f0efe9; --text-dim:#a3a299; --text-faint:#6b6963;
+  --accent:#f0efe9;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 1px 8px rgba(0,0,0,.3);
+  --shadow-lg:0 6px 18px rgba(0,0,0,.5), 0 1px 3px rgba(0,0,0,.3);
+  --cat-work:#3b82f6; --cat-errands:#06b6d4; --cat-side_project:#ec4899; --cat-health:#22c55e;
+  --foundry:#d97706;
+  --danger:#f87171;
+  --page-ink:#efece5; --page-rule:#2a2a30;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--page-ink);
+  font-family:Archivo,var(--app); font-size:15px; line-height:1.55;
+  margin:0; padding:48px 20px 96px;
+}
+.wrap{max-width:780px; margin:0 auto; display:flex; flex-direction:column; gap:56px}
+
+header h1{font-size:31px; font-weight:700; letter-spacing:-.02em; margin:0 0 10px; text-wrap:balance}
+header p{margin:0; color:var(--text-dim); max-width:60ch}
+header .rule{height:1px; background:var(--page-rule); margin-top:26px}
+
+.opt{display:flex; flex-direction:column; gap:14px}
+.opt-head{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
+.opt-key{
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; font-weight:500;
+  color:var(--surface); background:var(--page-ink);
+  padding:3px 8px; border-radius:5px; letter-spacing:.02em;
+}
+.opt-head h2{font-size:19px; font-weight:600; letter-spacing:-.01em; margin:0}
+.opt-note{margin:0; color:var(--text-dim); font-size:14px; max-width:64ch}
+.opt-note b{color:var(--page-ink); font-weight:600}
+
+/* --- app frame: uses the real app's fonts + tokens --- */
+.app{
+  font-family:var(--app); background:var(--bg);
+  border:1px solid var(--border-strong); border-radius:14px;
+  padding:16px; box-shadow:var(--shadow);
+}
+.app-label{
+  font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--text-faint); margin-bottom:12px;
+}
+.task{
+  background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  padding:12px 14px; margin-bottom:8px;
+}
+.task:last-child{margin-bottom:0}
+.title-row{display:flex; align-items:flex-start; gap:10px}
+.checkbox{
+  width:18px; height:18px; border:1.5px solid var(--text-faint); border-radius:5px;
+  flex-shrink:0; margin-top:2px; background:transparent;
+}
+.title{font-size:14px; font-weight:500; color:var(--text); flex:1}
+.meta{
+  display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; margin-left:28px;
+  font-size:12px; color:var(--text-dim); align-items:center;
+}
+.no-check .meta{margin-left:0}
+.pill{
+  display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px;
+  background:var(--bg); font-size:11px; border:1px solid var(--border); color:var(--text-dim);
+}
+.pill.cat{color:#fff; border:none; font-weight:500}
+.pill.cat[data-cat="errands"]{background:var(--cat-errands)}
+.pill.cat[data-cat="side_project"]{background:var(--cat-side_project)}
+.pill.cat[data-cat="work"]{background:var(--cat-work)}
+.pill.foundry{background:var(--foundry); color:#fff; border:none; font-weight:500}
+.pill.repo{font-family:"JetBrains Mono",monospace; font-size:10.5px}
+.pill.bad{border-color:var(--danger); color:var(--danger)}
+
+.acts{display:flex; gap:6px; margin-top:10px; flex-wrap:wrap}
+.no-check .acts{margin-left:0}
+.acts.indent{margin-left:28px}
+.btn{
+  font-family:inherit; font-size:12px; padding:4px 11px; border-radius:7px;
+  border:1px solid var(--border-strong); background:var(--surface); color:var(--text);
+  cursor:pointer;
+}
+.btn.primary{background:var(--text); color:var(--surface); border-color:var(--text)}
+.btn.quiet{border-color:transparent; color:var(--text-dim); padding-left:4px; padding-right:4px}
+.btn:focus-visible{outline:2px solid var(--foundry); outline-offset:2px}
+
+/* option C: grouped block */
+.group{
+  margin-top:18px; border-top:1px solid var(--border); padding-top:14px;
+}
+.group-head{
+  display:flex; align-items:center; gap:8px; margin-bottom:10px;
+  font-size:12px; color:var(--text-dim);
+}
+.group-dot{width:8px; height:8px; border-radius:50%; background:var(--foundry)}
+.group-head strong{color:var(--text); font-size:13px; font-weight:600}
+
+/* option D: one-liner strip */
+.strip{
+  display:flex; align-items:center; gap:10px;
+  padding:9px 12px; border:1px solid var(--border); border-radius:8px;
+  background:var(--surface); margin-bottom:6px; font-size:13px; color:var(--text);
+}
+.strip:last-child{margin-bottom:0}
+.strip .what{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.strip .repo{font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--text-faint)}
+.bar{width:3px; align-self:stretch; border-radius:2px; background:var(--foundry); flex-shrink:0}
+.bar.bad{background:var(--danger)}
+
+.strip.open{align-items:stretch; padding:12px; box-shadow:var(--shadow)}
+.strip-body{flex:1; min-width:0; display:flex; flex-direction:column; gap:8px}
+.strip-top{display:flex; align-items:baseline; gap:10px}
+.strip-top .what{white-space:normal}
+.strip-more{margin:0; font-size:12px; color:var(--text-dim); line-height:1.5}
+.strip .acts{margin-top:0}
+@media (max-width:480px){
+  .strip{flex-wrap:wrap}
+  .strip .what{flex:1 1 100%; white-space:normal}
+}
+.verdict{
+  border:1px solid var(--page-rule); border-left:3px solid var(--foundry);
+  border-radius:0 10px 10px 0; padding:18px 22px; background:var(--surface-2);
+}
+.verdict h2{font-size:17px; margin:0 0 10px; font-weight:600}
+.verdict p{margin:0 0 10px; color:var(--text-dim); font-size:14px}
+.verdict p:last-child{margin-bottom:0}
+.verdict b{color:var(--page-ink)}
+@media (max-width:560px){ body{padding:32px 14px 64px} header h1{font-size:25px} }
+</style>
+
+<div class="wrap">
+
+<header>
+  <h1>Foundry in the List</h1>
+  <p>Five ways a factory item could sit in your daily list — the last one is the hybrid you asked for. The same items appear in each, so you can compare directly. The frames use the app's real colors, fonts and card styling — this is what it would actually look like.</p>
+  <div class="rule"></div>
+</header>
+
+<!-- A -->
+<section class="opt">
+  <div class="opt-head"><span class="opt-key">A</span><h2>Just a tag</h2></div>
+  <p class="opt-note">A factory item is an ordinary task wearing a <b>Foundry</b> tag. Nothing new to learn — but it's checkable, and checking it off doesn't do anything on GitHub, so the list starts lying to you.</p>
+  <div class="app">
+    <div class="app-label">Today</div>
+    <div class="task">
+      <div class="title-row"><span class="checkbox"></span><span class="title">Renew car registration</span></div>
+      <div class="meta"><span class="pill cat" data-cat="errands">Errands</span><span class="pill">~20m</span></div>
+    </div>
+    <div class="task">
+      <div class="title-row"><span class="checkbox"></span><span class="title">Add a settings screen for digest time</span></div>
+      <div class="meta"><span class="pill foundry">Foundry</span><span class="pill repo">priority-post</span><span class="pill">waiting on you</span></div>
+    </div>
+    <div class="task">
+      <div class="title-row"><span class="checkbox"></span><span class="title">A draft is ready to look at — mobile layout for the goal page</span></div>
+      <div class="meta"><span class="pill foundry">Foundry</span><span class="pill repo">knowflow</span></div>
+    </div>
+    <div class="task">
+      <div class="title-row"><span class="checkbox"></span><span class="title">The build has been failing since Tuesday</span></div>
+      <div class="meta"><span class="pill foundry">Foundry</span><span class="pill repo">knowflow</span><span class="pill bad">broken</span></div>
+    </div>
+    <div class="task">
+      <div class="title-row"><span class="checkbox"></span><span class="title">A branch has been sitting unfinished for 12 days</span></div>
+      <div class="meta"><span class="pill foundry">Foundry</span><span class="pill repo">pocket-draft</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- B -->
+<section class="opt">
+  <div class="opt-head"><span class="opt-key">B</span><h2>Tag, plus the one thing to do</h2></div>
+  <p class="opt-note">Same row, same tag, but <b>no checkbox</b> — these appear when GitHub says they need you and vanish when it doesn't. Each carries the action that fits it. Merging is never here; that stays on GitHub, under your finger.</p>
+  <div class="app">
+    <div class="app-label">Today</div>
+    <div class="task">
+      <div class="title-row"><span class="checkbox"></span><span class="title">Renew car registration</span></div>
+      <div class="meta"><span class="pill cat" data-cat="errands">Errands</span><span class="pill">~20m</span></div>
+    </div>
+    <div class="task no-check">
+      <div class="title-row"><span class="title">Add a settings screen for digest time</span></div>
+      <div class="meta"><span class="pill foundry">Foundry</span><span class="pill repo">priority-post</span></div>
+      <div class="acts">
+        <button class="btn primary">Build it</button>
+        <button class="btn">Not now</button>
+        <button class="btn quiet">Read the plan</button>
+      </div>
+    </div>
+    <div class="task no-check">
+      <div class="title-row"><span class="title">A draft is ready to look at — mobile layout for the goal page</span></div>
+      <div class="meta"><span class="pill foundry">Foundry</span><span class="pill repo">knowflow</span></div>
+      <div class="acts">
+        <button class="btn primary">Review on GitHub</button>
+        <button class="btn quiet">Try again</button>
+      </div>
+    </div>
+    <div class="task no-check">
+      <div class="title-row"><span class="title">The build has been failing since Tuesday</span></div>
+      <div class="meta"><span class="pill foundry">Foundry</span><span class="pill repo">knowflow</span><span class="pill bad">broken</span></div>
+      <div class="acts"><button class="btn primary">See what broke</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- C -->
+<section class="opt">
+  <div class="opt-head"><span class="opt-key">C</span><h2>Its own block, under your tasks</h2></div>
+  <p class="opt-note">Your real tasks stay untouched at the top; the factory gets a labelled block below them. <b>Easiest to ignore on a busy day</b> — which is either the feature or the bug, depending on how much you trust yourself to scroll.</p>
+  <div class="app">
+    <div class="app-label">Today</div>
+    <div class="task">
+      <div class="title-row"><span class="checkbox"></span><span class="title">Renew car registration</span></div>
+      <div class="meta"><span class="pill cat" data-cat="errands">Errands</span><span class="pill">~20m</span></div>
+    </div>
+    <div class="task">
+      <div class="title-row"><span class="checkbox"></span><span class="title">Draft the Slay the Spire helper scope</span></div>
+      <div class="meta"><span class="pill cat" data-cat="side_project">Side project</span><span class="pill">~1h</span></div>
+    </div>
+    <div class="group">
+      <div class="group-head"><span class="group-dot"></span><strong>Foundry</strong><span>· 4 waiting</span></div>
+      <div class="task no-check">
+        <div class="title-row"><span class="title">Add a settings screen for digest time</span></div>
+        <div class="meta"><span class="pill repo">priority-post</span></div>
+        <div class="acts"><button class="btn primary">Build it</button><button class="btn">Not now</button></div>
+      </div>
+      <div class="task no-check">
+        <div class="title-row"><span class="title">A draft is ready to look at — mobile layout for the goal page</span></div>
+        <div class="meta"><span class="pill repo">knowflow</span></div>
+        <div class="acts"><button class="btn primary">Review on GitHub</button></div>
+      </div>
+      <div class="task no-check">
+        <div class="title-row"><span class="title">The build has been failing since Tuesday</span></div>
+        <div class="meta"><span class="pill repo">knowflow</span><span class="pill bad">broken</span></div>
+      </div>
+      <div class="task no-check">
+        <div class="title-row"><span class="title">A branch has been sitting unfinished for 12 days</span></div>
+        <div class="meta"><span class="pill repo">pocket-draft</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- D -->
+<section class="opt">
+  <div class="opt-head"><span class="opt-key">D</span><h2>One line each</h2></div>
+  <p class="opt-note">The densest read — four items in the height of one task card, with a coloured edge carrying the state. <b>Nothing is expanded</b>, so acting on one means opening it. Best if the factory gets noisy.</p>
+  <div class="app">
+    <div class="app-label">Today</div>
+    <div class="task">
+      <div class="title-row"><span class="checkbox"></span><span class="title">Renew car registration</span></div>
+      <div class="meta"><span class="pill cat" data-cat="errands">Errands</span><span class="pill">~20m</span></div>
+    </div>
+    <div class="group">
+      <div class="group-head"><span class="group-dot"></span><strong>Foundry</strong><span>· 4 waiting</span></div>
+      <div class="strip"><span class="bar"></span><span class="what">Add a settings screen for digest time</span><span class="repo">priority-post</span><button class="btn primary">Build it</button></div>
+      <div class="strip"><span class="bar"></span><span class="what">A draft is ready to look at</span><span class="repo">knowflow</span><button class="btn">Review</button></div>
+      <div class="strip"><span class="bar bad"></span><span class="what">The build has been failing since Tuesday</span><span class="repo">knowflow</span><button class="btn">Open</button></div>
+      <div class="strip"><span class="bar"></span><span class="what">A branch has been sitting unfinished for 12 days</span><span class="repo">pocket-draft</span><button class="btn">Open</button></div>
+    </div>
+  </div>
+</section>
+
+
+<!-- E -->
+<section class="opt">
+  <div class="opt-head"><span class="opt-key">E</span><h2>One line, in the list, opens when you want it</h2></div>
+  <p class="opt-note">D's shape with B's rules: a single line each, sitting <b>among your real tasks</b> rather than in a block of their own — no checkbox, coloured edge for state, primary action inline. Tap one and it opens for the rest. Calm at rest, complete when you look.</p>
+  <div class="app">
+    <div class="app-label">Today</div>
+    <div class="task">
+      <div class="title-row"><span class="checkbox"></span><span class="title">Renew car registration</span></div>
+      <div class="meta"><span class="pill cat" data-cat="errands">Errands</span><span class="pill">~20m</span></div>
+    </div>
+    <div class="strip"><span class="bar"></span><span class="what">Add a settings screen for digest time</span><span class="repo">priority-post</span><button class="btn primary">Build it</button></div>
+    <div class="task">
+      <div class="title-row"><span class="checkbox"></span><span class="title">Draft the Slay the Spire helper scope</span></div>
+      <div class="meta"><span class="pill cat" data-cat="side_project">Side project</span><span class="pill">~1h</span></div>
+    </div>
+    <div class="strip open">
+      <span class="bar"></span>
+      <div class="strip-body">
+        <div class="strip-top"><span class="what">A draft is ready to look at — mobile layout for the goal page</span><span class="repo">knowflow</span></div>
+        <p class="strip-more">Foundry wrote this from your note about the goal page being unusable on a phone. Nothing has shipped.</p>
+        <div class="acts"><button class="btn primary">Review on GitHub</button><button class="btn">Try again</button><button class="btn quiet">Not now</button></div>
+      </div>
+    </div>
+    <div class="strip"><span class="bar bad"></span><span class="what">The build has been failing since Tuesday</span><span class="repo">knowflow</span><button class="btn">Open</button></div>
+    <div class="task">
+      <div class="title-row"><span class="checkbox"></span><span class="title">Call the dentist back</span></div>
+      <div class="meta"><span class="pill cat" data-cat="errands">Errands</span><span class="pill">~5m</span></div>
+    </div>
+    <div class="strip"><span class="bar"></span><span class="what">A branch has been sitting unfinished for 12 days</span><span class="repo">pocket-draft</span><button class="btn">Open</button></div>
+  </div>
+</section>
+
+<section class="verdict">
+  <h2>E is the one</h2>
+  <p>D's density was never the problem — the separate block was. Pulling the strips back into the list keeps the calm one-line read while the factory still has to earn its place next to your real work, and the primary action stays one tap away.</p>
+  <p>Two things E has to get right, and both are visible above: a long title <b>wraps rather than truncates</b> on a narrow screen, and only one item is open at a time so the list never becomes a wall.</p>
+  <p>Still open: the <b>Foundry colour</b>. Your seven category colours are locked and taken, so this amber (<span style="font-family:'JetBrains Mono',monospace">#b45309</span>) is a new hue, close to <span style="font-family:'JetBrains Mono',monospace">learning #ea580c</span>. In E it only appears as the 3px edge, never as a filled pill — so the collision matters much less than it did in A or B.</p>
+</section>
+
+</div>

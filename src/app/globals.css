@@ -21,6 +21,9 @@
   --cat-errands: #0891b2;
   --cat-side_project: #db2777;
   --cat-other: #64748b;
+
+  --foundry: #b45309;
+  --foundry-bad: #dc2626;
 }
 
 [data-theme="dark"] {
@@ -44,6 +47,9 @@
   --cat-errands: #06b6d4;
   --cat-side_project: #ec4899;
   --cat-other: #94a3b8;
+
+  --foundry: #d97706;
+  --foundry-bad: #f87171;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -68,6 +74,9 @@
     --cat-errands: #06b6d4;
     --cat-side_project: #ec4899;
     --cat-other: #94a3b8;
+
+  --foundry: #d97706;
+  --foundry-bad: #f87171;
   }
 }
 
@@ -1067,4 +1076,185 @@ main.view-list .list-pane {
 
 @media (max-width: 768px) and (prefers-reduced-motion: reduce) {
   .rail, .panel { transition: none; }
+}
+
+/* --- factory items --------------------------------------------------------
+   A one-line strip that opens in place, sitting among the day's tasks rather
+   than in a section of its own. No checkbox: these appear when the factory says
+   they need you and vanish when it says they don't, so there is nothing here to
+   tick off. The left edge carries the state. */
+.foundry-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+.foundry-strip.open {
+  align-items: stretch;
+  padding: 12px;
+  box-shadow: var(--shadow);
+}
+.foundry-bar {
+  width: 3px;
+  align-self: stretch;
+  border-radius: 2px;
+  background: var(--foundry);
+  flex-shrink: 0;
+}
+.foundry-strip[data-state="build_failing"] .foundry-bar {
+  background: var(--foundry-bad);
+}
+.foundry-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.foundry-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.foundry-what {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.foundry-strip.open .foundry-what {
+  white-space: normal;
+  overflow: visible;
+}
+.foundry-repo {
+  font-size: 11px;
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+.foundry-detail {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.foundry-acts {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.foundry-btn {
+  font-family: inherit;
+  font-size: 12px;
+  padding: 4px 11px;
+  border-radius: 7px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.foundry-btn.primary {
+  background: var(--text);
+  color: var(--surface);
+  border-color: var(--text);
+}
+.foundry-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.foundry-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--foundry-bad);
+}
+.foundry-unavailable {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+@media (max-width: 480px) {
+  .foundry-strip {
+    flex-wrap: wrap;
+  }
+  .foundry-what {
+    white-space: normal;
+    overflow: visible;
+  }
+}
+
+/* Asking the factory for something. Collapsed to one quiet line until used —
+   it is available every day but wanted rarely. */
+.foundry-intake-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.foundry-ask {
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  color: var(--text-faint);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 5px 11px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.foundry-ask:hover {
+  color: var(--text-dim);
+  border-color: var(--text-faint);
+}
+.foundry-intake-msg {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.foundry-intake {
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--foundry);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 12px;
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.foundry-intake-input {
+  width: 100%;
+  font-family: inherit;
+  font-size: 14px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+}
+.foundry-draft-repo {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.foundry-draft-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
 }

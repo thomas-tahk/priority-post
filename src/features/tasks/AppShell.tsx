@@ -14,15 +14,19 @@ import { GoalRail } from "@/features/goals/GoalRail";
 import { GoalPage } from "@/features/goals/GoalPage";
 import { NewGoalForm } from "@/features/goals/NewGoalForm";
 import { openCountByGoal } from "@/features/goals/counts";
+import { FoundryBand } from "@/features/foundry/FoundryBand";
+import type { InboxResult } from "@/features/foundry/types";
 
 export function AppShell({
   scoredOpen,
   done,
   goals,
+  inbox,
 }: {
   scoredOpen: ScoredTask[];
   done: Task[];
   goals: Goal[];
+  inbox: InboxResult;
 }) {
   const [view, setView] = useState<ViewMode>("list");
   const [selected, setSelected] = useState<Task | null>(null);
@@ -103,9 +107,16 @@ export function AppShell({
                     </div>
                   )}
                   {scoredOpen.length === 0 ? (
-                    <p className="empty">Add a task above to get started.</p>
+                    <>
+                      <p className="empty">Add a task above to get started.</p>
+                      <FoundryBand inbox={inbox} />
+                    </>
                   ) : (
-                    <SortableTaskList tasks={scoredOpen} onOpen={setSelected} />
+                    <SortableTaskList
+                      tasks={scoredOpen}
+                      onOpen={setSelected}
+                      afterTop={<FoundryBand inbox={inbox} />}
+                    />
                   )}
                   {done.length > 0 && (
                     <>
