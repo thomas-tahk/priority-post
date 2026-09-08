@@ -1,6 +1,6 @@
 import { db } from "@/db";
-import { tasks, goals, sentReminders, type Task, type Goal } from "@/db/schema";
-import { and, isNull, isNotNull, eq } from "drizzle-orm";
+import { tasks, goals, sentReminders, sentDigests, type Task, type Goal } from "@/db/schema";
+import { and, isNull, isNotNull, eq, desc } from "drizzle-orm";
 
 export async function loadTasksAndGoals(): Promise<{ tasks: Task[]; goals: Goal[] }> {
   const [taskRows, goalRows] = await Promise.all([
@@ -31,4 +31,17 @@ export async function loadDueSoonState(): Promise<{
 
 export async function markReminderSent(taskId: number, kind: string): Promise<void> {
   await db.insert(sentReminders).values({ taskId, kind });
+}
+
+
+/** The most recent day the evening digest actually went out, in the user's zone. */
+export async function lastDigestDay(): Promise<string | null> {
+  const rows = await db.select().from(sentDigests).orderBy(desc(sentDigests.day)).limit(1);
+  return rows[0]?.day ?? null;
+}
+
+/** Record that today's digest went out. Writing the day before posting would
+ * lose a digest to a failed post; writing it after can only ever repeat one. */
+export async function markDigestSent(day: string): Promise<void> {
+  await db.insert(sentDigests).values({ day }).onConflictDoNothing();
 }

@@ -1,0 +1,38 @@
+name: Hourly tick
+
+# The only thing on a timer. Everything it decides — whether tonight's digest is
+# owed, whether a ping is allowed right now — lives in the app, so this file is
+# fixed and never edited. Editing the schedule means changing a setting, not
+# changing infrastructure.
+#
+# It fires hourly rather than once at the digest hour because GitHub's schedules
+# drift and are dropped under load. The app asks "is it past the digest time and
+# has today's gone out?", so a skipped tick sends late instead of never.
+
+on:
+  schedule:
+    - cron: "13 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: tick
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ask the app what it owes
+        env:
+          INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}
+        run: |
+          status=$(curl -s -o /tmp/tick.json -w "%{http_code}" \
+            -X POST "https://priority-post.vercel.app/api/internal/tick" \
+            -H "x-internal-secret: ${INTERNAL_API_SECRET}")
+          cat /tmp/tick.json
+          echo
+          if [ "$status" != "200" ]; then
+            echo "::error::tick returned ${status}"
+            exit 1
+          fi

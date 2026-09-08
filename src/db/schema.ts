@@ -38,8 +38,17 @@ export const sentReminders = pgTable("sent_reminders", {
   sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// One row per day the evening digest actually went out, keyed by the calendar
+// day in the user's zone. The hourly tick reads this to answer "is today's
+// digest owed?" — which is what lets a skipped tick fire late instead of never.
+export const sentDigests = pgTable("sent_digests", {
+  day: text("day").primaryKey(),
+  sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type Task = typeof tasks.$inferSelect;
 export type NewTask = typeof tasks.$inferInsert;
 export type Goal = typeof goals.$inferSelect;
 export type NewGoal = typeof goals.$inferInsert;
 export type SentReminder = typeof sentReminders.$inferSelect;
+export type SentDigest = typeof sentDigests.$inferSelect;
