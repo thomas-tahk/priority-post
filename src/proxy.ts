@@ -3,6 +3,12 @@ import { NextResponse, type NextRequest } from "next/server";
 // HTTP Basic Auth gate. Single-user app: any username, password from APP_PASSWORD.
 // Browser prompts once per device and remembers the credentials for the origin.
 export default function proxy(req: NextRequest) {
+  // The Discord bot's internal API authenticates with its own shared secret
+  // (x-internal-secret), not basic auth — let it past this gate.
+  if (req.nextUrl.pathname.startsWith("/api/internal")) {
+    return NextResponse.next();
+  }
+
   const expected = process.env.APP_PASSWORD;
   if (!expected) {
     return new NextResponse("APP_PASSWORD not configured", { status: 500 });

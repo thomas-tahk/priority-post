@@ -14,20 +14,26 @@ import { GoalRail } from "@/features/goals/GoalRail";
 import { GoalPage } from "@/features/goals/GoalPage";
 import { NewGoalForm } from "@/features/goals/NewGoalForm";
 import { openCountByGoal } from "@/features/goals/counts";
+import { FoundryBand } from "@/features/foundry/FoundryBand";
+import type { InboxResult } from "@/features/foundry/types";
 
 export function AppShell({
   scoredOpen,
   done,
   goals,
+  inbox,
 }: {
   scoredOpen: ScoredTask[];
   done: Task[];
   goals: Goal[];
+  inbox: InboxResult;
 }) {
   const [view, setView] = useState<ViewMode>("list");
   const [selected, setSelected] = useState<Task | null>(null);
   const [selectedGoalId, setSelectedGoalId] = useState<number | null>(null);
   const [newGoalOpen, setNewGoalOpen] = useState(false);
+  // Mobile only: the goal rail is an off-canvas drawer. Desktop CSS ignores this.
+  const [railOpen, setRailOpen] = useState(false);
 
   useEffect(() => { setView(readStoredView()); }, []);
 
@@ -55,15 +61,22 @@ export function AppShell({
 
   return (
     <>
-      <Header view={view} onViewChange={setView} showViewToggle={selectedGoalId === null} />
+      <Header
+        view={view}
+        onViewChange={setView}
+        showViewToggle={selectedGoalId === null}
+        onMenuClick={() => setRailOpen(true)}
+      />
       <div className="app-body">
+        {railOpen && <div className="rail-scrim" onClick={() => setRailOpen(false)} />}
         <GoalRail
           goals={goals}
           overviewCount={scoredOpen.length}
           countsByGoal={countsByGoal}
           selectedGoalId={selectedGoalId}
-          onSelect={setSelectedGoalId}
-          onNewGoal={() => setNewGoalOpen(true)}
+          onSelect={(id) => { setSelectedGoalId(id); setRailOpen(false); }}
+          onNewGoal={() => { setNewGoalOpen(true); setRailOpen(false); }}
+          open={railOpen}
         />
         <div className="app-content">
           {activeGoal ? (
@@ -94,9 +107,16 @@ export function AppShell({
                     </div>
                   )}
                   {scoredOpen.length === 0 ? (
-                    <p className="empty">Add a task above to get started.</p>
+                    <>
+                      <p className="empty">Add a task above to get started.</p>
+                      <FoundryBand inbox={inbox} />
+                    </>
                   ) : (
-                    <SortableTaskList tasks={scoredOpen} onOpen={setSelected} />
+                    <SortableTaskList
+                      tasks={scoredOpen}
+                      onOpen={setSelected}
+                      afterTop={<FoundryBand inbox={inbox} />}
+                    />
                   )}
                   {done.length > 0 && (
                     <>

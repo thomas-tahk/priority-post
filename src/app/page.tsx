@@ -3,11 +3,12 @@ import { listGoals } from "@/features/goals/queries";
 import { score } from "@/features/tasks/scorer";
 import { orderOpenTasks } from "@/features/tasks/ordering";
 import { AppShell } from "@/features/tasks/AppShell";
+import { fetchInbox } from "@/features/foundry/source";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [tasks, goals] = await Promise.all([listTasks(), listGoals()]);
+  const [tasks, goals, inbox] = await Promise.all([listTasks(), listGoals(), fetchInbox()]);
   const now = new Date();
 
   const open = tasks.filter((t) => t.doneAt === null);
@@ -15,5 +16,5 @@ export default async function Home() {
   const scoredOpen = orderedOpen.map((t) => ({ ...t, _score: score(t, now) }));
   const done = tasks.filter((t) => t.doneAt !== null);
 
-  return <AppShell scoredOpen={scoredOpen} done={done} goals={goals} />;
+  return <AppShell scoredOpen={scoredOpen} done={done} goals={goals} inbox={inbox} />;
 }

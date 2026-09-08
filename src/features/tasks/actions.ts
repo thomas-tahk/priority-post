@@ -34,7 +34,8 @@ export async function createTask(input: {
   title: string;
   categories?: string[];
   goalId?: number | null;
-}) {
+  startAt?: Date | null;
+}): Promise<{ id: number } | undefined> {
   const title = input.title.trim();
   if (!title) return;
 
@@ -73,6 +74,7 @@ export async function createTask(input: {
       categories: initialCategories,
       pinnedFields: initialPinned,
       goalId: input.goalId ?? null,
+      startAt: input.startAt ?? null,
       position,
     })
     .returning({ id: tasks.id });
@@ -98,6 +100,15 @@ export async function createTask(input: {
     await db.update(tasks).set(updates).where(eq(tasks.id, inserted.id));
     revalidatePath("/");
   });
+
+  return { id: inserted.id };
+}
+
+// Schedule or unschedule a task. start_at is not an AI-inferred field, so there
+// is no sparkle to pin. Used by the Discord bot's "reschedule" action.
+export async function setTaskStartAt(id: number, startAt: Date | null) {
+  await db.update(tasks).set({ startAt }).where(eq(tasks.id, id));
+  revalidatePath("/");
 }
 
 export async function updateTaskTitle(id: number, title: string) {

@@ -10,6 +10,7 @@ export function GoalRail({
   selectedGoalId,
   onSelect,
   onNewGoal,
+  open = false,
 }: {
   goals: Goal[];
   overviewCount: number;
@@ -17,9 +18,10 @@ export function GoalRail({
   selectedGoalId: number | null;
   onSelect: (id: number | null) => void;
   onNewGoal: () => void;
+  open?: boolean;
 }) {
   return (
-    <aside className="rail">
+    <aside className={`rail${open ? " open" : ""}`}>
       <div className="rail-label">View</div>
       <button
         type="button"
