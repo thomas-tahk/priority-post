@@ -33,6 +33,11 @@ jobs:
           cat /tmp/tick.json
           echo
           if [ "$status" != "200" ]; then
-            echo "::error::tick returned ${status}"
+            # The reason goes in the annotation, not just the log. A failed run
+            # emails a one-line notice; "tick returned 502" sends you digging
+            # through logs to find out that Discord refused the post. The body
+            # is the app's own explanation and carries no secrets.
+            reason=$(tr -d '\n' < /tmp/tick.json | cut -c1-400)
+            echo "::error::tick returned ${status} — ${reason:-no response body}"
             exit 1
           fi
