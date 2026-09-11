@@ -77,7 +77,7 @@ async function sendDueSoonPings(now: Date): Promise<string[]> {
 
 function readSchedule(): TickSchedule {
   return {
-    digestHour: intInRange(process.env.DIGEST_HOUR, 20, 0, 23),
+    digestHour: intInRange(process.env.DIGEST_HOUR, 18, 0, 23),
     digestMinute: intInRange(process.env.DIGEST_MINUTE, 0, 0, 59),
     activeStartHour: intInRange(process.env.ACTIVE_START_HOUR, 16, 0, 23),
     activeEndHour: intInRange(process.env.ACTIVE_END_HOUR, 22, 0, 23),
