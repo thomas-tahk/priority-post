@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { decideTick } from "./tick";
+import { decideTick, missedDigestDays } from "./tick";
 
 const TZ = "America/Denver";
 const schedule = { digestHour: 20, digestMinute: 0, activeStartHour: 16, activeEndHour: 22 };
@@ -35,8 +35,9 @@ describe("deciding what an hourly tick should do", () => {
     expect(decision.sendDigest).toBe(false);
   });
 
-  it("does not send it before the hour arrives", () => {
-    const decision = decideTick({ now: BEFORE, timezone: TZ, schedule, lastDigestDay: null });
+  it("does not send today's before the hour arrives", () => {
+    // Yesterday's went out last night, so nothing is owed until 20:00.
+    const decision = decideTick({ now: BEFORE, timezone: TZ, schedule, lastDigestDay: "2026-09-06" });
 
     expect(decision.sendDigest).toBe(false);
   });
@@ -51,7 +52,55 @@ describe("deciding what an hourly tick should do", () => {
     const at1945 = new Date("2026-09-08T01:45:00Z"); // 19:45 Denver
     const late = { ...schedule, digestHour: 19, digestMinute: 50 };
 
-    expect(decideTick({ now: at1945, timezone: TZ, schedule: late, lastDigestDay: null }).sendDigest).toBe(false);
+    const decision = decideTick({ now: at1945, timezone: TZ, schedule: late, lastDigestDay: "2026-09-06" });
+
+    expect(decision.sendDigest).toBe(false);
+  });
+});
+
+// The bug this guards: for four days running, the only tick GitHub actually ran
+// after the digest hour landed after midnight. The old rule asked "has TODAY's
+// gone out?", today had only just begun, and the evening it had missed was
+// dropped on the floor. Nothing failed, so nothing said so.
+describe("an evening the scheduler skipped", () => {
+  // 2026-09-08T07:45:00Z = 01:45 Denver on the 8th — the first tick to run
+  // since 19:28 the previous evening.
+  const AFTER_MIDNIGHT = new Date("2026-09-08T07:45:00Z");
+
+  it("is still delivered by the first tick after midnight", () => {
+    const decision = decideTick({ now: AFTER_MIDNIGHT, timezone: TZ, schedule, lastDigestDay: "2026-09-06" });
+
+    expect(decision.sendDigest).toBe(true);
+    expect(decision.digestDay).toBe("2026-09-07");
+  });
+
+  it("is not sent twice when a later tick runs the same morning", () => {
+    const decision = decideTick({ now: AFTER_MIDNIGHT, timezone: TZ, schedule, lastDigestDay: "2026-09-07" });
+
+    expect(decision.sendDigest).toBe(false);
+  });
+
+  it("does not fire once per skipped day when several were missed", () => {
+    // Four evenings lost. One catch-up message goes out, not four.
+    const decision = decideTick({ now: AFTER_MIDNIGHT, timezone: TZ, schedule, lastDigestDay: "2026-09-03" });
+
+    expect(decision.sendDigest).toBe(true);
+    expect(decision.digestDay).toBe("2026-09-07");
+  });
+
+  it("counts the evenings that went missing so the digest can say so", () => {
+    expect(missedDigestDays("2026-09-06", "2026-09-07")).toBe(0);
+    expect(missedDigestDays("2026-09-03", "2026-09-07")).toBe(3);
+    expect(missedDigestDays(null, "2026-09-07")).toBe(0);
+  });
+
+  it("crosses a month boundary without arithmetic on the day number", () => {
+    const firstOfOctober = new Date("2026-10-01T07:45:00Z"); // 01:45 Denver, Oct 1
+
+    const decision = decideTick({ now: firstOfOctober, timezone: TZ, schedule, lastDigestDay: "2026-09-29" });
+
+    expect(decision.digestDay).toBe("2026-09-30");
+    expect(decision.sendDigest).toBe(true);
   });
 });
 
