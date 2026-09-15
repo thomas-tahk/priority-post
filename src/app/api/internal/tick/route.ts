@@ -11,7 +11,7 @@ import { buildDigest, dueWindow, toCompact } from "@/features/planner/digest";
 import { formatEveningDigest } from "@/features/planner/digestMessage";
 import { postToDiscord } from "@/features/planner/discord";
 import { appTimezone } from "@/features/planner/clock";
-import { decideTick, type TickSchedule } from "@/features/planner/tick";
+import { decideTick, missedDigestDays, type TickSchedule } from "@/features/planner/tick";
 import { fetchInbox } from "@/features/foundry/source";
 
 export const runtime = "nodejs";
@@ -27,14 +27,18 @@ export async function POST(req: NextRequest) {
   const now = new Date();
   const timezone = appTimezone();
   const schedule = readSchedule();
-  const decision = decideTick({ now, timezone, schedule, lastDigestDay: await lastDigestDay() });
+  const previousDigestDay = await lastDigestDay();
+  const decision = decideTick({ now, timezone, schedule, lastDigestDay: previousDigestDay });
 
   const did: string[] = [];
 
   if (decision.sendDigest) {
     const [{ tasks, goals }, inbox] = await Promise.all([loadTasksAndGoals(), fetchInbox()]);
     const factory = inbox.ok ? inbox.items : [];
-    const posted = await postToDiscord(formatEveningDigest(buildDigest(tasks, goals, now), factory));
+    const missed = missedDigestDays(previousDigestDay, decision.digestDay);
+    const posted = await postToDiscord(
+      formatEveningDigest(buildDigest(tasks, goals, now), factory, missed),
+    );
     if (posted.ok) {
       await markDigestSent(decision.digestDay);
       did.push(`digest for ${decision.digestDay}`);

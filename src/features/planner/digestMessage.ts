@@ -27,8 +27,15 @@ function factoryLine(item: FoundryItem): string {
  * The factory goes second on purpose. It is the thing that produces items on
  * its own schedule, and a list that leads with machine output stops reading as
  * your list. */
-export function formatEveningDigest(digest: Digest, factory: FoundryItem[]): string {
+export function formatEveningDigest(digest: Digest, factory: FoundryItem[], missedDays = 0): string {
   const parts: string[] = ["🌆 **Evening. Here's tonight.**"];
+
+  // A channel that has been quiet because the scheduler dropped its runs looks
+  // exactly like a channel with nothing to say. Say which one it was.
+  if (missedDays > 0) {
+    const evenings = missedDays === 1 ? "evening" : "evenings";
+    parts.push(`\n⚠️ _No digest for the last ${missedDays} ${evenings} — the scheduler dropped those runs._`);
+  }
 
   if (digest.top.length === 0) parts.push("\nNo open tasks — add one and I'll triage it.");
   else parts.push("\n__Worth doing tonight__\n" + digest.top.map(taskLine).join("\n"));
