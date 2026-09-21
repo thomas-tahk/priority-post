@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, integer, jsonb, doublePrecision } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, jsonb, doublePrecision, date } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const goals = pgTable("goals", {
@@ -6,6 +6,14 @@ export const goals = pgTable("goals", {
   name: text("name").notNull(),
   description: text("description"),
   color: text("color").notNull(),
+  // An objective is one of two shapes. A `gate` is binary and dated — someone
+  // else set the date and it is either met or not. A `track` has no finish
+  // line; it succeeds by reaching a milestone this period. The old flat goal
+  // was neither, which is why nothing here could be checked by anyone but him.
+  kind: text("kind").notNull().default("track"),
+  targetDate: date("target_date"), // gates only; the date that is not his to move
+  weeklyTarget: integer("weekly_target"), // e.g. five applications, Mon-Sun
+  milestone: text("milestone"), // tracks only; what counts as progress this window
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -13,6 +13,7 @@ import { postToDiscord } from "@/features/planner/discord";
 import { appTimezone } from "@/features/planner/clock";
 import { decideTick, missedDigestDays, type TickSchedule } from "@/features/planner/tick";
 import { fetchInbox } from "@/features/foundry/source";
+import { gates, tracks } from "@/features/goals/objectives";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,7 +38,15 @@ export async function POST(req: NextRequest) {
     const factory = inbox.ok ? inbox.items : [];
     const missed = missedDigestDays(previousDigestDay, decision.digestDay);
     const posted = await postToDiscord(
-      formatEveningDigest(buildDigest(tasks, goals, now), factory, missed),
+      formatEveningDigest({
+        digest: buildDigest(tasks, goals, now),
+        objectives: {
+          gates: gates(goals, now, timezone),
+          tracks: tracks(goals, tasks, now, timezone),
+        },
+        factory,
+        missedDays: missed,
+      }),
     );
     if (posted.ok) {
       await markDigestSent(decision.digestDay);
