@@ -54,9 +54,19 @@ export const sentDigests = pgTable("sent_digests", {
   sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Append-only log of what the lead assistant and its specialists did. The
+// evening digest reports what landed since the last one; nothing edits a row.
+export const activity = pgTable("activity", {
+  id: serial("id").primaryKey(),
+  actor: text("actor").notNull(),
+  summary: text("summary").notNull(),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type Task = typeof tasks.$inferSelect;
 export type NewTask = typeof tasks.$inferInsert;
 export type Goal = typeof goals.$inferSelect;
 export type NewGoal = typeof goals.$inferInsert;
 export type SentReminder = typeof sentReminders.$inferSelect;
 export type SentDigest = typeof sentDigests.$inferSelect;
+export type Activity = typeof activity.$inferSelect;

@@ -43,6 +43,13 @@
       "when": 1790026636174,
       "tag": "0005_tiresome_impossible_man",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790048907763,
+      "tag": "0006_new_romulus",
+      "breakpoints": true
     }
   ]
 }
