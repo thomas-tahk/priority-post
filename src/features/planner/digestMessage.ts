@@ -79,8 +79,13 @@ export function formatEveningDigest(input: {
         digest.idleGoals.map((g) => `• **${g.name}** — quiet for ${g.idleDays}d`).join("\n"),
     );
   }
-  if (objectives && objectives.tracks.length > 0) {
-    parts.push("\n__This week__\n" + objectives.tracks.map(trackLine).join("\n"));
+  // A track with neither a weekly number nor a milestone renders as its own
+  // bare name, which says nothing and pushes the lines that do say something
+  // off the top of a phone screen. Those tracks stay in the app; they just
+  // have nothing to report until he gives them one.
+  const reporting = objectives?.tracks.filter((t) => t.weekly !== null || t.milestone !== null) ?? [];
+  if (reporting.length > 0) {
+    parts.push("\n__This week__\n" + reporting.map(trackLine).join("\n"));
   }
   if (factory.length > 0) {
     parts.push("\n__The factory needs you__\n" + factory.map(factoryLine).join("\n"));

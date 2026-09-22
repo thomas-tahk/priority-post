@@ -85,6 +85,32 @@ describe("objectives in the digest", () => {
     expect(text).toContain("• PDI build — one finished slice");
   });
 
+  it("leaves out a track that has nothing to report", () => {
+    const text = formatEveningDigest({
+      digest: empty,
+      objectives: {
+        gates: [],
+        tracks: [
+          { id: 1, name: "CS, SWE competency", milestone: null, weekly: null },
+          { id: 2, name: "Applications", milestone: null, weekly: { done: 0, target: 5 } },
+        ],
+      },
+    });
+    expect(text).toContain("• Applications — **0 of 5** this week");
+    expect(text).not.toContain("CS, SWE competency");
+  });
+
+  it("drops the whole section when no track has anything to report", () => {
+    const text = formatEveningDigest({
+      digest: empty,
+      objectives: {
+        gates: [],
+        tracks: [{ id: 1, name: "CS, SWE competency", milestone: null, weekly: null }],
+      },
+    });
+    expect(text).not.toContain("This week");
+  });
+
   it("says nothing about objectives when there are none", () => {
     const text = formatEveningDigest({ digest: empty, objectives: { gates: [], tracks: [] } });
     expect(text).not.toContain("Dates you did not set");
