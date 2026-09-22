@@ -117,3 +117,34 @@ describe("objectives in the digest", () => {
     expect(text).not.toContain("This week");
   });
 });
+
+describe("what the assistant did", () => {
+  const entry = (summary: string, actor = "lead") => ({ actor, summary });
+
+  it("lists each entry with who did it", () => {
+    const text = formatEveningDigest({ digest: empty, activity: [entry("Read your 5 goals.")] });
+
+    expect(text).toContain("What the assistant did");
+    expect(text).toContain("Read your 5 goals.");
+    expect(text).toContain("lead");
+  });
+
+  it("leaves the section out when the assistant did nothing", () => {
+    const text = formatEveningDigest({ digest: empty, activity: [] });
+
+    expect(text).not.toContain("What the assistant did");
+  });
+
+  it("puts the assistant after your own work and before the factory", () => {
+    const withTask = { top: [{ title: "Renew registration", startAt: null }], overdueTasks: [], idleGoals: [] } as never;
+
+    const text = formatEveningDigest({
+      digest: withTask,
+      activity: [entry("Read your 5 goals.")],
+      factory: [factoryItem()],
+    });
+
+    expect(text.indexOf("Renew registration")).toBeLessThan(text.indexOf("Read your 5 goals."));
+    expect(text.indexOf("Read your 5 goals.")).toBeLessThan(text.indexOf("The build is failing"));
+  });
+});

@@ -1,6 +1,6 @@
 import { db } from "@/db";
-import { tasks, goals, sentReminders, sentDigests, type Task, type Goal } from "@/db/schema";
-import { and, isNull, isNotNull, eq, desc } from "drizzle-orm";
+import { tasks, goals, sentReminders, sentDigests, activity, type Task, type Goal, type Activity } from "@/db/schema";
+import { and, isNull, isNotNull, eq, desc, asc, gt } from "drizzle-orm";
 
 export async function loadTasksAndGoals(): Promise<{ tasks: Task[]; goals: Goal[] }> {
   const [taskRows, goalRows] = await Promise.all([
@@ -44,4 +44,17 @@ export async function lastDigestDay(): Promise<string | null> {
  * lose a digest to a failed post; writing it after can only ever repeat one. */
 export async function markDigestSent(day: string): Promise<void> {
   await db.insert(sentDigests).values({ day }).onConflictDoNothing();
+}
+
+export async function recordActivity(entry: { actor: string; summary: string }): Promise<Activity> {
+  const [row] = await db.insert(activity).values(entry).returning();
+  return row;
+}
+
+/** What the assistant logged since the last digest went out, or in the last
+ * day when none ever has. */
+export async function activitySinceLastDigest(now: Date): Promise<Activity[]> {
+  const [last] = await db.select().from(sentDigests).orderBy(desc(sentDigests.sentAt)).limit(1);
+  const since = last?.sentAt ?? new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  return db.select().from(activity).where(gt(activity.at, since)).orderBy(asc(activity.at));
 }

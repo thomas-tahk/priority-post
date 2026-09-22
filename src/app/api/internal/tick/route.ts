@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireInternalSecret } from "@/features/planner/internal-auth";
 import {
+  activitySinceLastDigest,
   lastDigestDay,
   loadDueSoonState,
   loadTasksAndGoals,
@@ -34,7 +35,11 @@ export async function POST(req: NextRequest) {
   const did: string[] = [];
 
   if (decision.sendDigest) {
-    const [{ tasks, goals }, inbox] = await Promise.all([loadTasksAndGoals(), fetchInbox()]);
+    const [{ tasks, goals }, inbox, activity] = await Promise.all([
+      loadTasksAndGoals(),
+      fetchInbox(),
+      activitySinceLastDigest(now),
+    ]);
     const factory = inbox.ok ? inbox.items : [];
     const missed = missedDigestDays(previousDigestDay, decision.digestDay);
     const posted = await postToDiscord(
@@ -44,6 +49,7 @@ export async function POST(req: NextRequest) {
           gates: gates(goals, now, timezone),
           tracks: tracks(goals, tasks, now, timezone),
         },
+        activity,
         factory,
         missedDays: missed,
       }),

@@ -1,6 +1,7 @@
 import type { Digest } from "./digest";
 import type { FoundryItem } from "@/features/foundry/types";
 import type { Gate, Track } from "@/features/goals/objectives";
+import type { ActivityEntry } from "@/features/activity/parse";
 
 // The digest as a person reads it on a phone. The bot has its own copy of this
 // for the chat path; this one is the web app's, and it is the only one that
@@ -40,6 +41,10 @@ function trackLine(t: Track): string {
   return `• ${t.name} — **${done} of ${target}** this week`;
 }
 
+function activityLine(a: ActivityEntry): string {
+  return `• ${a.summary} _— ${a.actor}_`;
+}
+
 export type Objectives = { gates: Gate[]; tracks: Track[] };
 
 /** The evening message: the dates first, then your own work, then the factory.
@@ -50,10 +55,11 @@ export type Objectives = { gates: Gate[]; tracks: Track[] };
 export function formatEveningDigest(input: {
   digest: Digest;
   objectives?: Objectives;
+  activity?: ActivityEntry[];
   factory?: FoundryItem[];
   missedDays?: number;
 }): string {
-  const { digest, objectives, factory = [], missedDays = 0 } = input;
+  const { digest, objectives, activity = [], factory = [], missedDays = 0 } = input;
   const parts: string[] = ["🌆 **Evening. Here's tonight.**"];
 
   if (objectives && objectives.gates.length > 0) {
@@ -86,6 +92,9 @@ export function formatEveningDigest(input: {
   const reporting = objectives?.tracks.filter((t) => t.weekly !== null || t.milestone !== null) ?? [];
   if (reporting.length > 0) {
     parts.push("\n__This week__\n" + reporting.map(trackLine).join("\n"));
+  }
+  if (activity.length > 0) {
+    parts.push("\n__What the assistant did__\n" + activity.map(activityLine).join("\n"));
   }
   if (factory.length > 0) {
     parts.push("\n__The factory needs you__\n" + factory.map(factoryLine).join("\n"));
