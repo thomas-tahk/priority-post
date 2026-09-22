@@ -37,6 +37,10 @@ function mkGoal(overrides: Partial<Goal> = {}): Goal {
     name: "goal",
     description: null,
     color: "work",
+    kind: "track",
+    targetDate: null,
+    weeklyTarget: null,
+    milestone: null,
     createdAt: new Date(NOW.getTime() - 30 * DAY),
     ...overrides,
   };

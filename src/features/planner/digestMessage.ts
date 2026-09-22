@@ -1,5 +1,6 @@
 import type { Digest } from "./digest";
 import type { FoundryItem } from "@/features/foundry/types";
+import type { Gate, Track } from "@/features/goals/objectives";
 
 // The digest as a person reads it on a phone. The bot has its own copy of this
 // for the chat path; this one is the web app's, and it is the only one that
@@ -22,13 +23,42 @@ function factoryLine(item: FoundryItem): string {
   return `${FACTORY_HEADING[item.state]} **${item.summary}** — ${repo}`;
 }
 
-/** The evening message: your own work first, then what the factory needs.
+function gateLine(g: Gate): string {
+  const left =
+    g.daysLeft === 0 ? "**today**" : g.daysLeft === 1 ? "**tomorrow**" : `in **${g.daysLeft} days**`;
+  return `• ${g.name} — ${left}`;
+}
+
+/** A track's week, said flatly. No streak, no nudge, no exclamation.
  *
- * The factory goes second on purpose. It is the thing that produces items on
- * its own schedule, and a list that leads with machine output stops reading as
- * your list. */
-export function formatEveningDigest(digest: Digest, factory: FoundryItem[], missedDays = 0): string {
+ * The number is the whole message. He slides past applications and the pressure
+ * he responds to is external and real, which a formatted reminder is not — so
+ * dressing the number up buys nothing and costs the line its credibility. */
+function trackLine(t: Track): string {
+  if (t.weekly === null) return `• ${t.name}${t.milestone ? ` — ${t.milestone}` : ""}`;
+  const { done, target } = t.weekly;
+  return `• ${t.name} — **${done} of ${target}** this week`;
+}
+
+export type Objectives = { gates: Gate[]; tracks: Track[] };
+
+/** The evening message: the dates first, then your own work, then the factory.
+ *
+ * Gates lead because they are the only things here whose date he did not
+ * choose. The factory goes last on purpose: it produces items on its own
+ * schedule, and a list that leads with machine output stops reading as his. */
+export function formatEveningDigest(input: {
+  digest: Digest;
+  objectives?: Objectives;
+  factory?: FoundryItem[];
+  missedDays?: number;
+}): string {
+  const { digest, objectives, factory = [], missedDays = 0 } = input;
   const parts: string[] = ["🌆 **Evening. Here's tonight.**"];
+
+  if (objectives && objectives.gates.length > 0) {
+    parts.push("\n__Dates you did not set__\n" + objectives.gates.map(gateLine).join("\n"));
+  }
 
   // A channel that has been quiet because the scheduler dropped its runs looks
   // exactly like a channel with nothing to say. Say which one it was.
@@ -48,6 +78,14 @@ export function formatEveningDigest(digest: Digest, factory: FoundryItem[], miss
       "\n__Idle goals__\n" +
         digest.idleGoals.map((g) => `• **${g.name}** — quiet for ${g.idleDays}d`).join("\n"),
     );
+  }
+  // A track with neither a weekly number nor a milestone renders as its own
+  // bare name, which says nothing and pushes the lines that do say something
+  // off the top of a phone screen. Those tracks stay in the app; they just
+  // have nothing to report until he gives them one.
+  const reporting = objectives?.tracks.filter((t) => t.weekly !== null || t.milestone !== null) ?? [];
+  if (reporting.length > 0) {
+    parts.push("\n__This week__\n" + reporting.map(trackLine).join("\n"));
   }
   if (factory.length > 0) {
     parts.push("\n__The factory needs you__\n" + factory.map(factoryLine).join("\n"));

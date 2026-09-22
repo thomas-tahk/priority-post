@@ -30,6 +30,10 @@ export async function POST(req: NextRequest) {
       name: body.name.trim(),
       description: typeof body.description === "string" ? body.description : null,
       color: "other",
+      kind: "track",
+      targetDate: null,
+      weeklyTarget: null,
+      milestone: null,
       createdAt: new Date(),
     };
   } else {
