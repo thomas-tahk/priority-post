@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>priority-post · Schema Tour</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1e222b;
+    --ink: #e8ecf3;
+    --ink-dim: #9aa4b5;
+    --rule: #2a3040;
+    --entity: #3b82f6;
+    --entity-soft: #1d3a6b;
+    --log: #f97316;
+    --log-soft: #5a2f10;
+    --new: #ec4899;
+    --new-soft: #5c1d3c;
+    --ok: #22c55e;
+    --code-bg: #0b0d12;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f7fa; --panel: #fff; --panel-2: #eef1f6; --ink: #12161d; --ink-dim: #566072; --rule: #d3d9e4;
+      --entity: #1d4ed8; --entity-soft: #dbe6ff;
+      --log: #c2410c; --log-soft: #ffe8d6;
+      --new: #be185d; --new-soft: #ffdcec;
+      --ok: #15803d; --code-bg: #eaeef5;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:16px/1.65 ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width: 940px; margin:0 auto; padding:40px 16px 96px; }
+  header { border-bottom:3px solid var(--new); padding-bottom:18px; }
+  h1 { font-size:clamp(26px,5vw,36px); margin:0 0 6px; letter-spacing:-.02em; }
+  .sub { color:var(--ink-dim); margin:0; }
+  h2 { font-size:22px; margin:44px 0 6px; letter-spacing:-.01em; }
+  h2 .rule { display:block; height:3px; width:52px; background:var(--entity); margin-top:8px; border-radius:2px; }
+  h3 { font-size:17px; margin:26px 0 4px; }
+  p { margin:10px 0; }
+  code { background:var(--code-bg); padding:2px 6px; border-radius:5px; font-size:.9em;
+         font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  pre { background:var(--code-bg); border:1px solid var(--rule); border-radius:8px;
+        padding:12px 14px; overflow-x:auto; font-size:13.5px; line-height:1.55;
+        font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  pre code { background:none; padding:0; }
+  .card { background:var(--panel); border:1px solid var(--rule); border-radius:12px; padding:18px 20px; margin:18px 0; }
+  .figure { background:var(--panel); border:1px solid var(--rule); border-radius:12px; padding:16px; margin:18px 0; }
+  .figure svg { width:100%; height:auto; display:block; }
+  .legend { display:flex; gap:18px; flex-wrap:wrap; margin-top:14px; font-size:14px; color:var(--ink-dim); }
+  .legend span { display:flex; align-items:center; gap:7px; }
+  .chip { width:13px; height:13px; border-radius:3px; display:inline-block; }
+  table { width:100%; border-collapse:collapse; margin:14px 0; font-size:15px; }
+  th,td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--rule); vertical-align:top; }
+  th { font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-dim); }
+  .vs { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:18px 0; }
+  @media (max-width:700px){ .vs { grid-template-columns:1fr; } }
+  .vs > div { background:var(--panel); border:1px solid var(--rule); border-radius:12px; padding:16px 18px; }
+  .vs h4 { margin:0 0 8px; font-size:15px; display:flex; align-items:center; gap:8px; }
+  .tag { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+         padding:3px 8px; border-radius:999px; }
+  .tag.entity { background:var(--entity-soft); color:var(--entity); }
+  .tag.log { background:var(--log-soft); color:var(--log); }
+  .tag.new { background:var(--new-soft); color:var(--new); }
+  .vs ul { margin:8px 0 0; padding-left:18px; font-size:14.5px; color:var(--ink-dim); }
+  .vs li { margin:6px 0; }
+  .vs strong { color:var(--ink); }
+  .note { border-left:3px solid var(--log); background:var(--panel-2); padding:12px 15px;
+          border-radius:0 8px 8px 0; margin:16px 0; }
+  .note.ok { border-left-color:var(--ok); }
+  .note.new { border-left-color:var(--new); }
+  .diff-add { color:var(--ok); }
+  .q { color:var(--ink-dim); font-style:italic; }
+  footer { margin-top:48px; padding-top:20px; border-top:1px solid var(--rule); color:var(--ink-dim); font-size:14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>What migration 0007 did to the schema</h1>
+  <p class="sub">One new table, no change to any existing one — and why the shape of it is different from the tables around it.</p>
+</header>
+
+<h2>The whole schema<span class="rule"></span></h2>
+<p>Seven tables. The new one is on the bottom right, in pink. Nothing else on this page changed.</p>
+
+<div class="figure">
+<svg viewBox="0 0 920 500" role="img" aria-label="Entity relationship diagram of the priority-post schema">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9aa4b5"/>
+    </marker>
+    <style>
+      .tname { font: 700 13.5px ui-sans-serif, system-ui, sans-serif; fill: #fff; }
+      .col   { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #c7cfdd; }
+      .colk  { font: 700 12px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #e8ecf3; }
+      .more  { font: italic 11.5px ui-sans-serif, sans-serif; fill: #7d8697; }
+      .edge  { font: 11.5px ui-sans-serif, sans-serif; fill: #9aa4b5; }
+      .sect  { font: 700 12px ui-sans-serif, sans-serif; fill: #7d8697; letter-spacing: .08em; }
+      .box   { fill: #1b1f28; stroke-width: 2; }
+      @media (prefers-color-scheme: light) {
+        .col { fill: #3e4757; } .colk { fill: #12161d; } .more { fill: #79839a; }
+        .edge { fill: #566072; } .sect { fill: #79839a; } .box { fill: #ffffff; }
+      }
+    </style>
+  </defs>
+
+  <!-- goals -->
+  <rect class="box" x="30" y="52" width="215" height="134" rx="9" stroke="#3b82f6"/>
+  <rect x="30" y="52" width="215" height="27" rx="9" fill="#3b82f6"/>
+  <rect x="30" y="70" width="215" height="9" fill="#3b82f6"/>
+  <text class="tname" x="42" y="71">goals</text>
+  <text class="colk" x="42" y="98">id            serial PK</text>
+  <text class="col"  x="42" y="117">name          text</text>
+  <text class="col"  x="42" y="136">kind          text</text>
+  <text class="col"  x="42" y="155">target_date   date</text>
+  <text class="more" x="42" y="175">+ 4 more columns</text>
+
+  <!-- tasks -->
+  <rect class="box" x="345" y="52" width="250" height="172" rx="9" stroke="#3b82f6"/>
+  <rect x="345" y="52" width="250" height="27" rx="9" fill="#3b82f6"/>
+  <rect x="345" y="70" width="250" height="9" fill="#3b82f6"/>
+  <text class="tname" x="357" y="71">tasks</text>
+  <text class="colk" x="357" y="98">id          serial PK</text>
+  <text class="col"  x="357" y="117">title       text</text>
+  <text class="col"  x="357" y="136">start_at    timestamptz</text>
+  <text class="colk" x="357" y="155">goal_id     int → goals.id</text>
+  <text class="col"  x="357" y="174">urgency     int</text>
+  <text class="more" x="357" y="194">+ 7 more columns</text>
+
+  <!-- sent_reminders -->
+  <rect class="box" x="695" y="52" width="205" height="115" rx="9" stroke="#f97316"/>
+  <rect x="695" y="52" width="205" height="27" rx="9" fill="#f97316"/>
+  <rect x="695" y="70" width="205" height="9" fill="#f97316"/>
+  <text class="tname" x="707" y="71">sent_reminders</text>
+  <text class="colk" x="707" y="98">id       serial PK</text>
+  <text class="colk" x="707" y="117">task_id  int → tasks.id</text>
+  <text class="col"  x="707" y="136">kind     text</text>
+  <text class="col"  x="707" y="155">sent_at  timestamptz</text>
+
+  <!-- edges -->
+  <path d="M 245 119 L 340 119" stroke="#9aa4b5" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
+  <text class="edge" x="292" y="110" text-anchor="middle">goal_id</text>
+  <text class="edge" x="292" y="135" text-anchor="middle">ON DELETE</text>
+  <text class="edge" x="292" y="148" text-anchor="middle">SET NULL</text>
+
+  <path d="M 595 112 L 690 112" stroke="#9aa4b5" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
+  <text class="edge" x="642" y="103" text-anchor="middle">task_id</text>
+  <text class="edge" x="642" y="128" text-anchor="middle">ON DELETE</text>
+  <text class="edge" x="642" y="141" text-anchor="middle">CASCADE</text>
+
+  <!-- section divider -->
+  <line x1="30" y1="255" x2="900" y2="255" stroke="#2a3040" stroke-width="1" stroke-dasharray="5 6"/>
+  <text class="sect" x="30" y="278">FREE-STANDING LOGS — NO FOREIGN KEYS, NOTHING POINTS AT THEM</text>
+
+  <!-- sent_digests -->
+  <rect class="box" x="30" y="298" width="215" height="96" rx="9" stroke="#f97316"/>
+  <rect x="30" y="298" width="215" height="27" rx="9" fill="#f97316"/>
+  <rect x="30" y="316" width="215" height="9" fill="#f97316"/>
+  <text class="tname" x="42" y="317">sent_digests</text>
+  <text class="colk" x="42" y="344">day      text PK</text>
+  <text class="col"  x="42" y="363">sent_at  timestamptz</text>
+  <text class="more" x="42" y="383">natural key, not a serial</text>
+
+  <!-- activity -->
+  <rect class="box" x="290" y="298" width="215" height="96" rx="9" stroke="#f97316"/>
+  <rect x="290" y="298" width="215" height="27" rx="9" fill="#f97316"/>
+  <rect x="290" y="316" width="215" height="9" fill="#f97316"/>
+  <text class="tname" x="302" y="317">activity</text>
+  <text class="colk" x="302" y="344">id       serial PK</text>
+  <text class="col"  x="302" y="363">actor    text</text>
+  <text class="col"  x="302" y="382">summary  text</text>
+
+  <!-- assistant_turns (NEW) -->
+  <rect class="box" x="550" y="298" width="255" height="115" rx="9" stroke="#ec4899" stroke-width="2.5"/>
+  <rect x="550" y="298" width="255" height="27" rx="9" fill="#ec4899"/>
+  <rect x="550" y="316" width="255" height="9" fill="#ec4899"/>
+  <text class="tname" x="562" y="317">assistant_turns</text>
+  <text class="colk" x="562" y="344">id       serial PK</text>
+  <text class="col"  x="562" y="363">role     text</text>
+  <text class="col"  x="562" y="382">content  text</text>
+  <text class="col"  x="562" y="401">at       timestamptz</text>
+  <rect x="822" y="298" width="52" height="22" rx="11" fill="#ec4899"/>
+  <text x="848" y="313" text-anchor="middle" style="font:700 11px ui-sans-serif,sans-serif;fill:#fff">NEW</text>
+</svg>
+  <div class="legend">
+    <span><i class="chip" style="background:var(--entity)"></i> entity — a thing that exists and changes</span>
+    <span><i class="chip" style="background:var(--log)"></i> log — a record that something happened</span>
+    <span><i class="chip" style="background:var(--new)"></i> added by 0007</span>
+  </div>
+</div>
+
+<h2>The change itself<span class="rule"></span></h2>
+<p>The entire migration. Read what is <em>not</em> here: no <code>ALTER TABLE</code>, no new column on
+an existing table, no backfill, no index rebuild.</p>
+
+<pre><code><span class="diff-add">CREATE TABLE "assistant_turns" (
+  "id"      serial PRIMARY KEY NOT NULL,
+  "role"    text NOT NULL,
+  "content" text NOT NULL,
+  "at"      timestamp with time zone DEFAULT now() NOT NULL
+);</span></code></pre>
+
+<div class="note ok"><strong>Why that matters.</strong> A migration that only adds a table is the
+safest kind there is. The old code doesn't know the table exists, so it keeps working; the new code
+finds it empty, which is a valid starting state. Nothing to roll back but a <code>DROP TABLE</code>.
+Compare that to adding a <code>NOT NULL</code> column to <code>tasks</code> — every existing row needs
+a value, and until the new code deploys the old code is writing rows without one.</p>
+</div>
+
+<h2>Two shapes of table<span class="rule"></span></h2>
+<p>The thing worth taking from this schema isn't the new table — it's that the seven tables are
+really two different kinds of thing, and you handle them differently.</p>
+
+<div class="vs">
+  <div>
+    <h4><span class="tag entity">entity</span> goals · tasks</h4>
+    <p style="margin:0;font-size:14.5px">A row <em>is</em> something. It exists, you edit it, you
+    eventually finish or delete it.</p>
+    <ul>
+      <li><strong>Rows get UPDATEd.</strong> Rename a task, change its urgency, set <code>done_at</code>.</li>
+      <li><strong>They point at each other.</strong> <code>tasks.goal_id</code> is a foreign key — the database itself refuses a task pointing at a goal that doesn't exist.</li>
+      <li><strong>Deleting one is a real question</strong> — what happens to the rows pointing at it?</li>
+    </ul>
+  </div>
+  <div>
+    <h4><span class="tag log">log</span> sent_reminders · sent_digests · activity · assistant_turns</h4>
+    <p style="margin:0;font-size:14.5px">A row is <em>a thing that happened</em>. It was true at a
+    moment and stays true forever.</p>
+    <ul>
+      <li><strong>Append only.</strong> Nothing in the app UPDATEs these. You add rows and read them back.</li>
+      <li><strong>Mostly no relationships.</strong> Three of the four point at nothing.</li>
+      <li><strong>Deleting is a retention question, not a correctness one</strong> — "how far back do we keep?", not "what breaks?".</li>
+    </ul>
+  </div>
+</div>
+
+<p>Once you see that split, the column choices stop looking arbitrary. Every log table ends in a
+timestamp, because <em>when</em> is the whole point of the row. No log table has an <code>updated_at</code>,
+because nothing updates.</p>
+
+<h2>The two foreign keys, and why they behave differently<span class="rule"></span></h2>
+<p>A foreign key is a promise the database enforces: <em>this number points at a real row in that other
+table.</em> It also forces you to answer one question up front — <strong>what happens to me when the row
+I point at is deleted?</strong> The schema answers it differently in the two places it comes up, and
+the difference is the interesting part.</p>
+
+<table>
+  <tr><th>Relationship</th><th>On delete</th><th>What that means in the app</th></tr>
+  <tr>
+    <td><code>tasks.goal_id → goals.id</code></td>
+    <td><strong style="color:var(--entity)">SET NULL</strong></td>
+    <td>Delete the goal “Get hired”, and <em>every task under it survives</em> — they just stop belonging
+    to anything. Correct, because “update my résumé” is still a real task you still have to do. A goal is
+    a label on a task, not its reason for existing.</td>
+  </tr>
+  <tr>
+    <td><code>sent_reminders.task_id → tasks.id</code></td>
+    <td><strong style="color:var(--log)">CASCADE</strong></td>
+    <td>Delete the task, and its “I already pinged you about this” rows are deleted with it. Correct,
+    because a reminder about a task that no longer exists is meaningless — and if the row lingered and
+    the id were ever reused, it would suppress a ping for a different task entirely.</td>
+  </tr>
+</table>
+
+<div class="note"><strong>The third option you'll see elsewhere is <code>RESTRICT</code></strong> — refuse
+the delete while anything still points at the row. It's the right answer when the pointing rows are
+valuable and you'd rather fail loudly than quietly destroy them. It's wrong here: you'd be unable to
+delete a goal until you'd hand-cleared every task under it.</div>
+
+<h2>Why the new table points at nothing<span class="rule"></span></h2>
+<p class="q">“It stores a conversation about my tasks — shouldn't it link to the tasks?”</p>
+<p>It shouldn't, and the reason is a useful test to remember: <strong>a foreign key is for a reference
+the database can check.</strong> A turn in the conversation looks like this:</p>
+
+<pre><code>role:    "user"
+content: "actually move that one to saturday instead"</code></pre>
+
+<p>There is no task id in there. There is no task id <em>anywhere</em> in a turn — the reference lives
+in English, and it is resolved by the model reading the previous turns, not by Postgres. A
+<code>task_id</code> column here would be null on nearly every row, wrong on some, and enforce nothing.</p>
+
+<div class="note new"><strong>The rule of thumb:</strong> add a foreign key when the child row is
+<em>about</em> exactly one parent row and becomes nonsense without it. <code>sent_reminders</code> passes
+that test — a ping is about one task, period. <code>assistant_turns</code> fails it — a turn is about
+the conversation, and it stays perfectly readable after every task it mentions is gone.</div>
+
+<h2>Column choices worth knowing<span class="rule"></span></h2>
+
+<h3><code>timestamp with time zone</code> — every time column in this schema</h3>
+<p>Despite the name, it does <em>not</em> store a zone. It stores an absolute instant (UTC internally)
+and renders into whatever zone you ask for. Plain <code>timestamp</code> stores wall-clock digits with
+no idea what they mean — “2pm” with no answer to “2pm where?”.</p>
+<p>This is not academic here. Vercel's functions run in UTC and that cannot be changed; your laptop is
+Denver. With plain <code>timestamp</code>, the same task would read 2pm locally and 8pm in production.
+It's the same class of bug that put a test task six hours late last week — the storage type was already
+right, the <em>model</em> was doing the conversion twice.</p>
+
+<h3><code>serial</code> vs. a natural primary key</h3>
+<p>Six tables use <code>serial</code> — an auto-incrementing integer with no meaning. One doesn't:</p>
+<pre><code>sent_digests.day  text PRIMARY KEY   -- '2026-09-23'</code></pre>
+<p>That's deliberate. The primary key <em>is</em> the fact being recorded: one digest per calendar day.
+The database now enforces "at most one row per day" for free — a second insert for the same day is
+rejected rather than producing a duplicate evening digest. A serial id would have allowed two rows for
+Tuesday, and the no-double-send rule would have had to live in application code instead, where it can
+be forgotten.</p>
+
+<h3><code>text</code> for <code>role</code>, not an enum</h3>
+<p><code>role</code> only ever holds <code>'user'</code> or <code>'assistant'</code>, which looks like a
+textbook case for a Postgres <code>ENUM</code>. It's <code>text</code> because of a rule in this repo's
+CLAUDE.md: standard SQL only, no Postgres-only features until phase 3, so the database stays swappable.
+The cost of that choice is real — the database won't stop a typo'd <code>'assitant'</code> — and it's
+paid knowingly.</p>
+
+<h2>Why the table exists at all<span class="rule"></span></h2>
+<p>The old gateway bot was a process that never stopped, so it could hold the conversation in a variable
+in memory. The new endpoint is a function: it wakes up, answers, and is gone. Nothing carries over —
+which is fine for "what's next?" and fatal for "move that one to Saturday instead".</p>
+<p>So the conversation had to land somewhere durable, and Postgres was already there. Two decisions
+inside that:</p>
+<ul>
+  <li><strong>Plain text, not the raw API transcript.</strong> The model's real message list contains
+  tool-call plumbing — a <code>tool_use</code> block must always be followed by its matching
+  <code>tool_result</code>, or the next request is rejected outright. Store that raw and a window that
+  cuts between the pair produces a conversation the API refuses. Storing the trimmed plain-text view
+  makes a broken pair structurally impossible.</li>
+  <li><strong>A window, not the whole history.</strong> Reads take the last 16 rows. Old rows stay —
+  it's a log — but they stop being sent to the model, which bounds both cost and confusion.</li>
+</ul>
+
+<footer>
+  <p>Schema: <code>src/db/schema.ts</code> · Migration: <code>drizzle/0007_parched_steve_rogers.sql</code>
+  · Reading code: <code>src/features/assistant/queries.ts</code></p>
+  <p>Not yet applied to production — run <code>pnpm db:migrate</code> (step 4 of the Discord setup guide).</p>
+</footer>
+
+</div>
+</body>
+</html>
