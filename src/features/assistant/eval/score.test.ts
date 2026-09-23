@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type Anthropic from "@anthropic-ai/sdk";
-import { toHistory, scoreCase, erroredCase } from "./score.js";
-import type { Case } from "./types.js";
+import { toHistory, scoreCase, erroredCase } from "./score";
+import type { Case } from "./types";
 
 const deleteCase: Case = {
   id: "sf-01",

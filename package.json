@@ -12,7 +12,9 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "test": "vitest run",
     "discord:register": "tsx scripts/register-discord-command.ts",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "eval": "tsx src/features/assistant/eval/run.ts",
+    "repl": "tsx scripts/planner-repl.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",

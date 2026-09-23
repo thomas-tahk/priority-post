@@ -1,9 +1,9 @@
 // The scoring half of the run: pure, so it is covered by `pnpm test` while the
 // API-calling half in run.ts is not.
 import type Anthropic from "@anthropic-ai/sdk";
-import { evaluateCase } from "./match.js";
-import { recordedCallsFrom } from "./world.js";
-import type { Case, CaseResult } from "./types.js";
+import { evaluateCase } from "./match";
+import { recordedCallsFrom } from "./world";
+import type { Case, CaseResult } from "./types";
 
 /** The reply runAgent returns when it burns through MAX_ROUNDS without finishing. */
 const ROUND_LIMIT_REPLY = "I got tangled up mid-task — mind trying that again?";

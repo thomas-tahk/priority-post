@@ -1,6 +1,6 @@
 // Pure argument matchers. The checker itself has to be trustworthy, so it is
 // plain, side-effect free, and unit-tested independently of any API call.
-import type { ExpectedCall, Matcher, RecordedCall } from "./types.js";
+import type { ExpectedCall, Matcher, RecordedCall } from "./types";
 
 function instant(value: unknown): number | null {
   if (typeof value !== "string") return null;

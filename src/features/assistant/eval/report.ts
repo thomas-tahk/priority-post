@@ -1,6 +1,6 @@
 // Scorecard rendering. Pure — takes results in, returns a string — so it is
 // unit-tested over synthetic results without spending a cent on the API.
-import type { CaseCategory, CaseResult, RunMeta } from "./types.js";
+import type { CaseCategory, CaseResult, RunMeta } from "./types";
 
 const BAR_WIDTH = 13;
 

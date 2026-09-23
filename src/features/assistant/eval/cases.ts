@@ -8,7 +8,7 @@
 //    2 File expense report   6 Finish Rust chapter 8          10 Renew car registration (overdue)
 //    3 Gym session           7 Deploy the bot to Railway      11 Write newsletter draft
 //    4 Call the dentist      8 Pick up prescription (19:00)   12 Weekly review
-import type { Case } from "./types.js";
+import type { Case } from "./types";
 
 // --- action_choice: does it reach for the right capability at all? -----------
 const actionChoice: Case[] = [

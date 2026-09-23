@@ -4,11 +4,11 @@
 // scoreCase -> renderScorecard) actually holds together, which no unit test does.
 import { describe, it, expect } from "vitest";
 import type Anthropic from "@anthropic-ai/sdk";
-import { runAgent } from "../src/agent.js";
-import { renderScorecard } from "./report.js";
-import { scoreCase, toHistory } from "./score.js";
-import { FIXED_NOW, makeWorld } from "./world.js";
-import type { Case, CaseResult, RunMeta } from "./types.js";
+import { runAgent } from "../agent";
+import { renderScorecard } from "./report";
+import { scoreCase, toHistory } from "./score";
+import { FIXED_NOW, makeWorld, TIMEZONE } from "./world";
+import type { Case, CaseResult, RunMeta } from "./types";
 
 const META: RunMeta = {
   model: "scripted",
@@ -34,8 +34,7 @@ async function play(caseDef: Case, turns: unknown[]): Promise<CaseResult> {
     toHistory(caseDef),
     api,
     scriptedModel(turns),
-    FIXED_NOW,
-    0
+    { now: FIXED_NOW, timezone: TIMEZONE, temperature: 0 }
   );
   return scoreCase(caseDef, messages, reply);
 }
@@ -85,8 +84,7 @@ describe("the harness end to end", () => {
       toHistory(wantsDigest),
       api,
       scriptedModel([toolUse("get_digest", {}), finalText("here's tonight")]),
-      FIXED_NOW,
-      0
+      { now: FIXED_NOW, timezone: TIMEZONE, temperature: 0 }
     );
     const toolResult = messages
       .flatMap((m) => (Array.isArray(m.content) ? m.content : []))

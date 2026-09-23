@@ -224,9 +224,11 @@ will land; it just isn't instant.
 
 ## Notes
 
-- The old gateway bot in `bot/` is **superseded** by this. It was never deployed.
-  Don't run both — the bot's own scheduler would send a second, older evening
-  digest every night on top of the web app's.
+- The gateway bot that used to live in `bot/` has been **deleted**. It was never
+  deployed, and running it alongside this would have posted a second, older
+  evening digest every night. Its eval harness survived the move and now lives in
+  `src/features/assistant/eval` (`pnpm eval`), where it scores the agent that
+  actually answers. Its June setup guide is kept in `docs/archive/`.
 - Security boundary, in order: Discord's Ed25519 signature (proves the request is
   from Discord and unaltered) → your user ID (proves it's you) → `INTERNAL_API_SECRET`
   (the endpoint talking to the app's own API). The basic-auth password does not

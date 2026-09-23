@@ -11,12 +11,12 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Anthropic from "@anthropic-ai/sdk";
-import { MODEL, runAgent } from "../src/agent.js";
-import { CASES } from "./cases.js";
-import { renderScorecard } from "./report.js";
-import { erroredCase, scoreCase, toHistory } from "./score.js";
-import { FIXED_NOW, makeWorld, timezoneMismatch } from "./world.js";
-import type { CaseResult, RunMeta } from "./types.js";
+import { MODEL, runAgent } from "../agent";
+import { CASES } from "./cases";
+import { renderScorecard } from "./report";
+import { erroredCase, scoreCase, toHistory } from "./score";
+import { FIXED_NOW, makeWorld, TIMEZONE } from "./world";
+import type { CaseResult, RunMeta } from "./types";
 
 const TEMPERATURE = 0;
 const DELAY_MS = 400; // stay clear of rate limits; cases run sequentially
@@ -40,8 +40,7 @@ async function runCase(caseDef: (typeof CASES)[number], anthropic: Anthropic): P
       toHistory(caseDef),
       api,
       anthropic,
-      FIXED_NOW,
-      TEMPERATURE
+      { now: FIXED_NOW, timezone: TIMEZONE, temperature: TEMPERATURE }
     );
     return scoreCase(caseDef, messages, reply);
   } catch (e) {
@@ -50,12 +49,6 @@ async function runCase(caseDef: (typeof CASES)[number], anthropic: Anthropic): P
 }
 
 async function main(): Promise<void> {
-  const zoneProblem = timezoneMismatch(Intl.DateTimeFormat().resolvedOptions().timeZone);
-  if (zoneProblem) {
-    console.error(zoneProblem);
-    process.exit(1);
-  }
-
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     console.error(

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { CASES } from "./cases.js";
-import { makeWorld } from "./world.js";
-import type { CaseCategory } from "./types.js";
+import { CASES } from "./cases";
+import { makeWorld } from "./world";
+import type { CaseCategory } from "./types";
 
 describe("the case list is well-formed", () => {
   it("has unique ids", () => {

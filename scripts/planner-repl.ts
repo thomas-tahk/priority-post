@@ -1,4 +1,5 @@
 // Local test harness: drive the agent loop from the terminal, no Discord.
+// Same agent the /pp command runs — this is the fast way to try a prompt change.
 // Talks to a running web app over /api/internal/* exactly as the bot does, so it
 // exercises the real tool-use → API → DB chain. Point it at your LOCAL dev server
 // (not prod) since the agent can create/complete/delete real tasks.
@@ -12,9 +13,10 @@ import "dotenv/config";
 import * as readline from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import Anthropic from "@anthropic-ai/sdk";
-import { HttpPlannerApi } from "./api.js";
-import { runAgent } from "./agent.js";
-import { trimHistory } from "./history.js";
+import { HttpPlannerApi } from "../src/features/assistant/api";
+import { runAgent } from "../src/features/assistant/agent";
+import { trimHistory } from "../src/features/assistant/history";
+import { appTimezone } from "../src/features/planner/clock";
 
 function required(name: string): string {
   const v = process.env[name];
@@ -44,7 +46,7 @@ async function main() {
 
     try {
       history.push({ role: "user", content: line });
-      const { reply, messages } = await runAgent(history, api, anthropic, new Date());
+      const { reply, messages } = await runAgent(history, api, anthropic, { now: new Date(), timezone: appTimezone() });
       history = trimHistory(messages);
       console.log(`bot › ${reply}\n`);
     } catch (e) {

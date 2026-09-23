@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { matchValue, matchCall, evaluateCase, describeCall } from "./match.js";
-import type { RecordedCall } from "./types.js";
+import { matchValue, matchCall, evaluateCase, describeCall } from "./match";
+import type { RecordedCall } from "./types";
 
 describe("matchValue — equals", () => {
   it("matches identical numbers and rejects different ones", () => {

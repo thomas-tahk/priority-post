@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type Anthropic from "@anthropic-ai/sdk";
-import { runAgent } from "./agent.js";
-import type { PlannerApi } from "./api.js";
+import { runAgent } from "./agent";
+import type { PlannerApi } from "./api";
 
 function fakeApi(): { api: PlannerApi; calls: string[][] } {
   const calls: string[][] = [];
@@ -57,7 +57,7 @@ describe("runAgent", () => {
       [{ role: "user", content: "add call dentist" }],
       api,
       anthropic,
-      new Date("2026-06-08T12:00:00Z")
+      { now: new Date("2026-06-08T12:00:00Z"), timezone: "America/Denver" }
     );
 
     expect(calls).toContainEqual(["createTask", "call dentist"]);
@@ -74,7 +74,7 @@ describe("runAgent", () => {
       [{ role: "user", content: "delete the gym task" }],
       api,
       anthropic,
-      new Date()
+      { now: new Date(), timezone: "America/Denver" }
     );
 
     expect(calls.find((c) => c[0] === "deleteTask")).toBeUndefined();
@@ -85,7 +85,11 @@ describe("runAgent", () => {
     const { api } = fakeApi();
     const { anthropic, requests } = recordingAnthropic();
 
-    await runAgent([{ role: "user", content: "hi" }], api, anthropic, new Date(), 0);
+    await runAgent([{ role: "user", content: "hi" }], api, anthropic, {
+      now: new Date(),
+      timezone: "America/Denver",
+      temperature: 0,
+    });
 
     expect(requests).toHaveLength(1);
     expect(requests[0]?.temperature).toBe(0);
@@ -95,7 +99,10 @@ describe("runAgent", () => {
     const { api } = fakeApi();
     const { anthropic, requests } = recordingAnthropic();
 
-    await runAgent([{ role: "user", content: "hi" }], api, anthropic, new Date());
+    await runAgent([{ role: "user", content: "hi" }], api, anthropic, {
+      now: new Date(),
+      timezone: "America/Denver",
+    });
 
     expect(requests).toHaveLength(1);
     expect(requests[0]).not.toHaveProperty("temperature");

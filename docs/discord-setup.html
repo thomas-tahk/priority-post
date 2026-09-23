@@ -288,9 +288,10 @@ confirmation first.</p>
 </div>
 
 <footer>
-  <p><strong>The old gateway bot in <code>bot/</code> is superseded by this</strong> and was never
-  deployed. Don't run both — its own scheduler would send a second, older evening digest every night on
-  top of the web app's.</p>
+  <p><strong>The gateway bot that used to live in <code>bot/</code> has been deleted.</strong> It was
+  never deployed, and running it alongside this would have posted a second, older evening digest every
+  night. Its 40-case eval survived the move — it lives in <code>src/features/assistant/eval</code>
+  (<code>pnpm eval</code>) and now scores the agent that actually answers.</p>
   <p>Security boundary, in order: Discord's Ed25519 signature (the request is from Discord and unaltered)
   → your user ID (it's you) → <code>INTERNAL_API_SECRET</code> (the endpoint talking to the app's own
   API). The basic-auth password doesn't apply here; <code>/api/discord</code> is exempt in

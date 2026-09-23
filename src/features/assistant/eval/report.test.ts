@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { renderScorecard, summarize } from "./report.js";
-import type { CaseResult, RunMeta } from "./types.js";
+import { renderScorecard, summarize } from "./report";
+import type { CaseResult, RunMeta } from "./types";
 
 const META: RunMeta = {
   model: "claude-sonnet-4-6",
