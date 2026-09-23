@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>priority-post · /pp Setup</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1e222b;
+    --ink: #e8ecf3;
+    --ink-dim: #9aa4b5;
+    --rule: #2a3040;
+    --accent: #3b82f6;
+    --accent-2: #a855f7;
+    --ok: #22c55e;
+    --warn: #f97316;
+    --danger: #ec4899;
+    --code-bg: #0b0d12;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f7fa;
+      --panel: #ffffff;
+      --panel-2: #f0f2f7;
+      --ink: #12161d;
+      --ink-dim: #5a6474;
+      --rule: #d8dde7;
+      --accent: #2563eb;
+      --accent-2: #9333ea;
+      --ok: #16a34a;
+      --warn: #ea580c;
+      --danger: #db2777;
+      --code-bg: #eef1f6;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.65 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 40px 16px 96px; }
+  header { border-bottom: 3px solid var(--accent); padding-bottom: 20px; margin-bottom: 8px; }
+  h1 { font-size: clamp(26px, 5vw, 38px); margin: 0 0 8px; letter-spacing: -0.02em; }
+  .sub { color: var(--ink-dim); margin: 0; }
+  .lede { background: var(--panel); border: 1px solid var(--rule); border-left: 4px solid var(--accent-2);
+          border-radius: 10px; padding: 16px 18px; margin: 24px 0; }
+  h2 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+  .step {
+    background: var(--panel); border: 1px solid var(--rule); border-radius: 12px;
+    margin: 14px 0; overflow: hidden;
+  }
+  .step-head {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 16px 18px; cursor: pointer; user-select: none;
+  }
+  .step-head:hover { background: var(--panel-2); }
+  .num {
+    flex: 0 0 auto; width: 28px; height: 28px; border-radius: 8px;
+    background: var(--accent); color: #fff; font-weight: 700; font-size: 14px;
+    display: grid; place-items: center;
+  }
+  .step.done .num { background: var(--ok); }
+  .step.done h2 { text-decoration: line-through; color: var(--ink-dim); }
+  .step-body { padding: 0 18px 18px 58px; border-top: 1px solid var(--rule); padding-top: 14px; }
+  .gate .num { background: var(--accent-2); }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  code { background: var(--code-bg); padding: 2px 6px; border-radius: 5px; font-size: 0.9em; }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--rule); border-radius: 8px;
+    padding: 12px 14px; overflow-x: auto; font-size: 14px; line-height: 1.5;
+  }
+  pre code { background: none; padding: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 15px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { color: var(--ink-dim); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .note { border-left: 3px solid var(--warn); background: var(--panel-2); padding: 12px 14px;
+          border-radius: 0 8px 8px 0; margin: 14px 0; }
+  .note.danger { border-left-color: var(--danger); }
+  .note.ok { border-left-color: var(--ok); }
+  .note strong { color: var(--ink); }
+  a { color: var(--accent); }
+  ul { padding-left: 20px; }
+  li { margin: 6px 0; }
+  .flow { font-size: 13px; line-height: 1.5; white-space: pre; }
+  .tools { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+           margin: 24px 0 8px; flex-wrap: wrap; }
+  .progress { color: var(--ink-dim); font-size: 14px; }
+  button {
+    background: none; border: 1px solid var(--rule); color: var(--ink-dim);
+    border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 14px; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  h3 { font-size: 16px; margin: 22px 0 6px; }
+  .trouble p { margin: 4px 0 16px; color: var(--ink-dim); }
+  .trouble strong { color: var(--ink); }
+  footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--rule);
+           color: var(--ink-dim); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Talking to the planner from Discord</h1>
+  <p class="sub">Wire <code>/pp</code> into Discord — ask the planner anything, from anywhere, at any hour.</p>
+</header>
+
+<div class="lede">
+  <p style="margin:0 0 10px"><strong>There is no server to keep running.</strong> Discord calls the web app
+  when you type a command, the app answers, and nothing sits idle in between. That is why this costs
+  nothing and why it cannot be “down” unless the whole site is.</p>
+  <div class="flow">Your phone ──► Discord ──signed POST──► priority-post.vercel.app/api/discord
+                                              │
+                                              ├─► Claude (list / add / reschedule / …)
+                                              └─► Neon Postgres</div>
+  <p style="margin:12px 0 0">The evening digest and due-soon pings do <strong>not</strong> change — those
+  still come from the hourly tick, exactly as they do today.</p>
+</div>
+
+<div class="tools">
+  <span class="progress" id="progress">0 of 8 done</span>
+  <button id="reset">Clear checkmarks</button>
+</div>
+
+<section class="step" data-step="1">
+  <div class="step-head"><span class="num">1</span><h2>Create the Discord application</h2></div>
+  <div class="step-body">
+    <ul>
+      <li>Go to <a href="https://discord.com/developers/applications" target="_blank" rel="noreferrer">discord.com/developers/applications</a> → <strong>New Application</strong>.</li>
+      <li>Name it what you want to see in Discord (e.g. <code>priority-post</code>). Create.</li>
+      <li>Sidebar → <strong>Bot</strong> → <strong>Reset Token</strong> → copy it.</li>
+    </ul>
+    <div class="note danger"><strong>The bot token is a secret.</strong> You need it once, in step 5, and
+    never again. Paste it straight into <code>.env.local</code> — not into a chat window or a note.</div>
+    <p>On <strong>General Information</strong>, two values are waiting for you:</p>
+    <table>
+      <tr><th>Where it is</th><th>What it's called here</th></tr>
+      <tr><td><strong>Application ID</strong></td><td><code>DISCORD_APP_ID</code></td></tr>
+      <tr><td><strong>Public Key</strong></td><td><code>DISCORD_PUBLIC_KEY</code></td></tr>
+    </table>
+    <p>Both of those are safe to copy around. The bot token is not.</p>
+  </div>
+</section>
+
+<section class="step" data-step="2">
+  <div class="step-head"><span class="num">2</span><h2>Find your own Discord user ID</h2></div>
+  <div class="step-body">
+    <p>The signature proves <em>Discord</em> sent the request. It does not prove <em>you</em> typed it.
+    Your user ID is what locks the planner to you.</p>
+    <ul>
+      <li>Discord → <strong>User Settings</strong> → <strong>Advanced</strong> → turn on <strong>Developer Mode</strong>.</li>
+      <li>Right-click your own name anywhere → <strong>Copy User ID</strong>.</li>
+    </ul>
+    <p>That's <code>OWNER_DISCORD_ID</code>. It's a long number, not your username.</p>
+  </div>
+</section>
+
+<section class="step" data-step="3">
+  <div class="step-head"><span class="num">3</span><h2>Add the environment variables in Vercel</h2></div>
+  <div class="step-body">
+    <p>Vercel → <code>priority-post</code> → <strong>Settings</strong> → <strong>Environment Variables</strong>.
+    Add these three to <strong>Production</strong>:</p>
+    <table>
+      <tr><th>Name</th><th>Value</th></tr>
+      <tr><td><code>DISCORD_APP_ID</code></td><td>Application ID from step 1</td></tr>
+      <tr><td><code>DISCORD_PUBLIC_KEY</code></td><td>Public Key from step 1</td></tr>
+      <tr><td><code>OWNER_DISCORD_ID</code></td><td>Your user ID from step 2</td></tr>
+    </table>
+    <p>These should already be there from the hourly tick — check, don't re-add:
+    <code>DATABASE_URL</code>, <code>ANTHROPIC_API_KEY</code>, <code>APP_PASSWORD</code>,
+    <code>INTERNAL_API_SECRET</code>, <code>DISCORD_WEBHOOK_URL</code>.</p>
+    <p>Optional: <code>APP_TIMEZONE</code> (defaults to <code>America/Denver</code>) and
+    <code>WEB_BASE_URL</code> (defaults to the deployment's own URL, which is what you want).</p>
+    <div class="note"><strong>Do not skip the redeploy.</strong> Vercel only picks up new variables on the
+    next build: <strong>Deployments</strong> → newest → <strong>⋯</strong> → <strong>Redeploy</strong>.</div>
+  </div>
+</section>
+
+<section class="step" data-step="4">
+  <div class="step-head"><span class="num">4</span><h2>Run the migration</h2></div>
+  <div class="step-body">
+    <p>The conversation is remembered in a new <code>assistant_turns</code> table — that's how a follow-up
+    like “move it to Saturday instead” knows what <em>it</em> is.</p>
+    <pre><code>pnpm db:migrate</code></pre>
+    <div class="note danger">In this repo <code>.env.local</code> points at <strong>Neon production</strong>,
+    not the Docker container. That is what you want here — but it means this command changes the real
+    database. It creates one table and touches nothing existing.</div>
+  </div>
+</section>
+
+<section class="step" data-step="5">
+  <div class="step-head"><span class="num">5</span><h2>Register the <code>/pp</code> command</h2></div>
+  <div class="step-body">
+    <p>From the repo root, with <code>DISCORD_APP_ID</code> and <code>DISCORD_BOT_TOKEN</code> in <code>.env.local</code>:</p>
+    <pre><code>pnpm discord:register</code></pre>
+    <p>Expected output:</p>
+    <pre><code>Registered /pp. It can take up to an hour to appear the first time.</code></pre>
+    <p>Run this once. Run it again only if you change the command's name, description or options — it
+    updates in place rather than creating a duplicate.</p>
+  </div>
+</section>
+
+<section class="step" data-step="6">
+  <div class="step-head"><span class="num">6</span><h2>Point Discord at the endpoint</h2></div>
+  <div class="step-body">
+    <p>Developer portal → <strong>General Information</strong> → <strong>Interactions Endpoint URL</strong>:</p>
+    <pre><code>https://priority-post.vercel.app/api/discord</code></pre>
+    <p>Click <strong>Save</strong>.</p>
+    <div class="note ok">Discord immediately sends two test requests — one correctly signed, one
+    deliberately broken — and refuses to save unless the app accepts the first and rejects the second
+    with a 401. <strong>If it saves, the security half is already proven.</strong></div>
+  </div>
+</section>
+
+<section class="step" data-step="7">
+  <div class="step-head"><span class="num">7</span><h2>Install it where you'll use it</h2></div>
+  <div class="step-body">
+    <p>Portal → <strong>Installation</strong> → under <strong>Install Link</strong> pick
+    <strong>Discord Provided Link</strong>, then open that link.</p>
+    <ul>
+      <li><strong>Add to My Apps</strong> — <code>/pp</code> works in a DM with the app, anywhere in
+      Discord, no server involved. <strong>Pick this one.</strong></li>
+      <li><strong>Add to Server</strong> — also fine if you'd rather it live in a channel.</li>
+    </ul>
+    <p>Both can be enabled. The first is what makes it work from your phone without opening a server.</p>
+  </div>
+</section>
+
+<section class="step gate" data-step="8">
+  <div class="step-head"><span class="num">8</span><h2>The done-gate</h2></div>
+  <div class="step-body">
+    <p>Open Discord on your <strong>phone</strong>, DM the app, and send:</p>
+    <pre><code>/pp what's next?</code></pre>
+    <p>You should see “thinking…” for a few seconds, then the actual answer, naming your real tasks.</p>
+    <p>Then prove it writes, not just reads:</p>
+    <pre><code>/pp add: swap the AP uplink friday at 2pm</code></pre>
+    <p>Open <a href="https://priority-post.vercel.app" target="_blank" rel="noreferrer">priority-post.vercel.app</a>
+    and confirm the task is there, scheduled for <strong>2:00 PM</strong> — not 8:00 PM. That six-hour
+    version was a real bug found in testing; it is fixed and covered by tests, but this is the check that
+    proves it on production.</p>
+    <div class="note ok"><strong>That is the gate.</strong> If both of those worked on your phone, you're done.</div>
+  </div>
+</section>
+
+<h3>What you can say</h3>
+<p style="color:var(--ink-dim);margin-top:0"><code>/pp</code> takes one free-text message. It's a
+conversation, not a syntax.</p>
+<table>
+  <tr><th>You type</th><th>It does</th></tr>
+  <tr><td><code>what's next?</code> · <code>plan my evening</code></td><td>Today's top focus plus what's slipping</td></tr>
+  <tr><td><code>add: call the dentist friday 3pm</code></td><td>Creates the task, scheduled</td></tr>
+  <tr><td><code>reschedule taxes to monday</code></td><td>Moves it</td></tr>
+  <tr><td><code>mark the gym task done</code></td><td>Completes it</td></tr>
+  <tr><td><code>break down "launch the newsletter"</code></td><td>Proposes sub-tasks, adds none until you say yes</td></tr>
+  <tr><td><code>how am I doing this week?</code></td><td>Progress over the last 7 days</td></tr>
+  <tr><td><code>reset</code></td><td>Forgets the conversation so far; your tasks are untouched</td></tr>
+</table>
+<p>It remembers the last 16 turns, so “move it to Saturday instead” works. Deletes always ask for
+confirmation first.</p>
+
+<h3>Troubleshooting</h3>
+<div class="trouble">
+  <p><strong>Discord won't save the endpoint URL.</strong><br />
+  Nearly always one of: the deployment hasn't been redeployed since you added
+  <code>DISCORD_PUBLIC_KEY</code>; the key was pasted with a stray space; or the Application ID went
+  into the public key field. Redeploy, then re-check the value.</p>
+
+  <p><strong>“The application did not respond.”</strong><br />
+  Discord gave up waiting for the first acknowledgement (3 seconds). Vercel → <strong>Logs</strong>.
+  If the endpoint 500s, an env var is missing — the log names which one.</p>
+
+  <p><strong>Stuck on “thinking…” forever.</strong><br />
+  The acknowledgement landed but the follow-up didn't. Vercel → <strong>Logs</strong>, look for
+  <code>discord follow-up failed:</code> — the line says what Discord refused.</p>
+
+  <p><strong>Someone else's <code>/pp</code> does nothing useful.</strong><br />
+  Working as designed. They get “This planner only answers to its owner.” — ephemeral, so nobody else
+  in the channel sees it either.</p>
+
+  <p><strong>Replies are slow.</strong><br />
+  A complex ask takes several model round-trips. The function is allowed 300 seconds and Discord holds
+  the interaction open for 15 minutes, so it will land; it just isn't instant.</p>
+</div>
+
+<footer>
+  <p><strong>The old gateway bot in <code>bot/</code> is superseded by this</strong> and was never
+  deployed. Don't run both — its own scheduler would send a second, older evening digest every night on
+  top of the web app's.</p>
+  <p>Security boundary, in order: Discord's Ed25519 signature (the request is from Discord and unaltered)
+  → your user ID (it's you) → <code>INTERNAL_API_SECRET</code> (the endpoint talking to the app's own
+  API). The basic-auth password doesn't apply here; <code>/api/discord</code> is exempt in
+  <code>src/proxy.ts</code>, as <code>/api/internal</code> already was.</p>
+  <p>Times resolve in <code>APP_TIMEZONE</code>, stated explicitly to the model. Vercel functions run in
+  UTC and cannot be changed — which is exactly why the zone is named rather than inferred.</p>
+  <p style="margin-top:16px">Source: <code>docs/discord-setup.md</code></p>
+</footer>
+
+</div>
+<script>
+  const KEY = "pp-discord-setup-done";
+  const steps = [...document.querySelectorAll(".step")];
+  const progress = document.getElementById("progress");
+
+  function load() {
+    try { return new Set(JSON.parse(localStorage.getItem(KEY) || "[]")); }
+    catch { return new Set(); }
+  }
+  function save(done) {
+    try { localStorage.setItem(KEY, JSON.stringify([...done])); } catch {}
+  }
+  function render(done) {
+    steps.forEach((s) => s.classList.toggle("done", done.has(s.dataset.step)));
+    progress.textContent = `${done.size} of ${steps.length} done`;
+  }
+
+  let done = load();
+  render(done);
+
+  steps.forEach((s) => {
+    s.querySelector(".step-head").addEventListener("click", () => {
+      const id = s.dataset.step;
+      done.has(id) ? done.delete(id) : done.add(id);
+      save(done);
+      render(done);
+    });
+  });
+
+  document.getElementById("reset").addEventListener("click", () => {
+    done = new Set();
+    save(done);
+    render(done);
+  });
+</script>
+</body>
+</html>

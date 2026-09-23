@@ -9,6 +9,14 @@ export default function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Discord's interactions endpoint. It cannot send basic auth, and it does not
+  // need to: every request carries an Ed25519 signature over its own body, and
+  // the handler additionally refuses anyone but the owner. A 401 here would
+  // just mean Discord refuses to save the URL at all.
+  if (req.nextUrl.pathname === "/api/discord") {
+    return NextResponse.next();
+  }
+
   const expected = process.env.APP_PASSWORD;
   if (!expected) {
     return new NextResponse("APP_PASSWORD not configured", { status: 500 });

@@ -63,6 +63,18 @@ export const activity = pgTable("activity", {
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// The Discord conversation, one row per turn. A gateway bot kept this in
+// memory; a function has none between invocations, so "move that one to
+// Monday" only resolves if the previous turns are on disk. Stored already
+// trimmed to plain text (see features/assistant/history.ts) — no tool_use
+// plumbing, so a row can never be half of a dangling pair.
+export const assistantTurns = pgTable("assistant_turns", {
+  id: serial("id").primaryKey(),
+  role: text("role").notNull(), // 'user' | 'assistant'
+  content: text("content").notNull(),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type Task = typeof tasks.$inferSelect;
 export type NewTask = typeof tasks.$inferInsert;
 export type Goal = typeof goals.$inferSelect;
@@ -70,3 +82,4 @@ export type NewGoal = typeof goals.$inferInsert;
 export type SentReminder = typeof sentReminders.$inferSelect;
 export type SentDigest = typeof sentDigests.$inferSelect;
 export type Activity = typeof activity.$inferSelect;
+export type AssistantTurn = typeof assistantTurns.$inferSelect;

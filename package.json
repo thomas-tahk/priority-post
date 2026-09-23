@@ -11,6 +11,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
     "test": "vitest run",
+    "discord:register": "tsx scripts/register-discord-command.ts",
     "test:watch": "vitest"
   },
   "dependencies": {
