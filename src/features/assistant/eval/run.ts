@@ -6,7 +6,9 @@
 //
 // This file is the impure half — everything it decides lives in score.ts,
 // match.ts and report.ts, which are unit-tested without touching the network.
-import "dotenv/config";
+import { config as loadEnv } from "dotenv";
+loadEnv({ path: ".env.local" });
+loadEnv();
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

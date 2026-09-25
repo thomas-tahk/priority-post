@@ -6,7 +6,9 @@
 // Global commands can take up to an hour to appear the first time; re-running
 // it later updates in place rather than creating a duplicate.
 
-import "dotenv/config";
+import { config as loadEnv } from "dotenv";
+loadEnv({ path: ".env.local" });
+loadEnv();
 
 const STRING_OPTION = 3;
 

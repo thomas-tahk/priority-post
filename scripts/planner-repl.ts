@@ -9,7 +9,9 @@
 // Type messages like you would in Discord ("what's next?", "add: call dentist friday 3pm").
 // Ctrl-C or "/exit" to quit.
 
-import "dotenv/config";
+import { config as loadEnv } from "dotenv";
+loadEnv({ path: ".env.local" });
+loadEnv();
 import * as readline from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import Anthropic from "@anthropic-ai/sdk";
