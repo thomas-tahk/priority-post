@@ -50,6 +50,13 @@
       "when": 1790048907763,
       "tag": "0006_new_romulus",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790197318518,
+      "tag": "0007_parched_steve_rogers",
+      "breakpoints": true
     }
   ]
 }

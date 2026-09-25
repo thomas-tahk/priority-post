@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>priority-post · Discord Bot Setup Guide</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #171a23;
+    --surface-2: #1e222e;
+    --border: #2a2f3d;
+    --text: #e6e9ef;
+    --text-dim: #a0a7b8;
+    --text-faint: #6b7282;
+    --accent: #6e8bff;
+    --accent-soft: #2a3358;
+    --green: #46c07a;
+    --amber: #e0a93a;
+    --red: #e0625c;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 48px 24px 96px; }
+  header.hero {
+    border: 1px solid var(--border);
+    background: linear-gradient(160deg, var(--surface-2), var(--surface));
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin-bottom: 32px;
+  }
+  header.hero .eyebrow {
+    font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700; margin: 0 0 8px;
+  }
+  header.hero h1 { margin: 0 0 8px; font-size: 28px; line-height: 1.2; }
+  header.hero p { margin: 0; color: var(--text-dim); }
+  h2 {
+    font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--text-faint); font-weight: 700;
+    margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  .step {
+    display: grid; grid-template-columns: 44px 1fr; gap: 18px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px 22px; margin-bottom: 14px;
+  }
+  .step .num {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px; border: 1px solid var(--accent);
+  }
+  .step h3 { margin: 4px 0 8px; font-size: 17px; }
+  .step p { margin: 0 0 8px; color: var(--text-dim); }
+  .step ul { margin: 8px 0 0; padding-left: 20px; color: var(--text-dim); }
+  .step li { margin: 4px 0; }
+  .step:last-child { margin-bottom: 0; }
+  code {
+    font-family: var(--mono); font-size: 13px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 5px; padding: 1px 6px; color: #cdd6ff;
+  }
+  pre {
+    background: #0b0d13; border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px; overflow-x: auto; margin: 12px 0 0;
+  }
+  pre code { background: none; border: none; padding: 0; color: #cdd6ff; font-size: 13px; }
+  .pill {
+    display: inline-block; font-family: var(--mono); font-size: 12px;
+    background: var(--accent-soft); color: var(--accent);
+    border-radius: 5px; padding: 1px 7px; font-weight: 600;
+  }
+  .callout {
+    border-radius: 12px; padding: 14px 18px; margin: 16px 0;
+    border: 1px solid var(--border); background: var(--surface);
+    display: grid; grid-template-columns: 24px 1fr; gap: 12px;
+  }
+  .callout .ico { font-size: 18px; line-height: 1.4; }
+  .callout p { margin: 0; color: var(--text-dim); font-size: 14.5px; }
+  .callout.warn { border-color: #5a4a1f; background: #211d12; }
+  .callout.warn .ico { color: var(--amber); }
+  .callout.info { border-color: #243a5e; background: #121a28; }
+  .callout.info .ico { color: var(--accent); }
+  .callout.good { border-color: #1f4a33; background: #112019; }
+  .callout.good .ico { color: var(--green); }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14.5px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-faint); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
+  td:first-child code { white-space: nowrap; }
+  .check { list-style: none; padding: 0; margin: 0; }
+  .check li { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+  .check li:last-child { border-bottom: none; }
+  .check .box { color: var(--green); font-weight: 700; }
+  .try { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .try span {
+    font-family: var(--mono); font-size: 13px; color: #cdd6ff;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 7px; padding: 6px 11px;
+  }
+  a { color: var(--accent); }
+  footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--text-faint); font-size: 13px; }
+  .small { font-size: 13px; color: var(--text-faint); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <p class="eyebrow">priority-post · Phase 3</p>
+    <h1>Wire up the Discord planner &amp; test it yourself</h1>
+    <p>This is the <strong>local test path</strong> — your laptop runs both the web app and the bot, talking to a throwaway seed database. Zero changes to Vercel, Neon, or Railway. Goal: confirm the bot actually works in Discord before going to production.</p>
+  </header>
+
+  <div class="callout good">
+    <span class="ico">✓</span>
+    <p><strong>Already done for you:</strong> the web app is running locally on <code>:3000</code> with 6 seed tasks, and <code>bot/.env</code> is filled in <em>except</em> the three Discord values below. You only do the Discord side.</p>
+  </div>
+
+  <h2>The 3 values you're collecting</h2>
+  <p class="small">Everything below exists to fill these three blanks in <code>bot/.env</code>. Keep a scratchpad open.</p>
+  <table>
+    <thead><tr><th>Env var</th><th>What it is</th><th>From step</th></tr></thead>
+    <tbody>
+      <tr><td><code>DISCORD_BOT_TOKEN</code></td><td>The bot's password</td><td>Step 2</td></tr>
+      <tr><td><code>DISCORD_CHANNEL_ID</code></td><td>The channel it listens &amp; posts in</td><td>Step 4</td></tr>
+      <tr><td><code>OWNER_DISCORD_ID</code></td><td>Your own user ID (so it knows it's you)</td><td>Step 4</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Part A · Create the Discord bot</h2>
+
+  <div class="step">
+    <div class="num">1</div>
+    <div>
+      <h3>Make an application</h3>
+      <p>Go to the <a href="https://discord.com/developers/applications" target="_blank" rel="noopener">Discord Developer Portal</a> → click <strong>New Application</strong> → name it (e.g. <em>priority-post</em>) → accept terms → <strong>Create</strong>.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">2</div>
+    <div>
+      <h3>Get the bot token <span class="pill">DISCORD_BOT_TOKEN</span></h3>
+      <p>Left sidebar → <strong>Bot</strong>. Then:</p>
+      <ul>
+        <li>Click <strong>Reset Token</strong> → <strong>Copy</strong>. This is your <code>DISCORD_BOT_TOKEN</code>. (You only see it once — if you lose it, just reset again.)</li>
+        <li>Scroll to <strong>Privileged Gateway Intents</strong> → turn <strong>Message Content Intent</strong> <strong>ON</strong> → <strong>Save Changes</strong>.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <span class="ico">▲</span>
+    <p><strong>The #1 reason setups silently fail:</strong> if <strong>Message Content Intent</strong> is off, the bot connects fine but can't read a word you type — your messages just vanish. If it's not replying later, check this first.</p>
+  </div>
+
+  <div class="step">
+    <div class="num">3</div>
+    <div>
+      <h3>Invite the bot to a server</h3>
+      <p>Left sidebar → <strong>OAuth2</strong> → <strong>URL Generator</strong>.</p>
+      <ul>
+        <li>Under <strong>Scopes</strong>, check <strong>bot</strong>.</li>
+        <li>A <strong>Bot Permissions</strong> box appears below — check <strong>View Channels</strong>, <strong>Send Messages</strong>, <strong>Read Message History</strong>.</li>
+        <li>Copy the <strong>Generated URL</strong> at the bottom, paste it in your browser, pick a server <em>you own</em> (make a private one if needed), → <strong>Authorize</strong>.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">4</div>
+    <div>
+      <h3>Grab the two IDs <span class="pill">DISCORD_CHANNEL_ID</span> <span class="pill">OWNER_DISCORD_ID</span></h3>
+      <p>In the Discord <em>app</em> (not the portal): <strong>Settings → Advanced → Developer Mode → ON</strong>. Now right-click works:</p>
+      <ul>
+        <li>Right-click the <strong>channel</strong> you want the bot in → <strong>Copy Channel ID</strong> → that's <code>DISCORD_CHANNEL_ID</code>.</li>
+        <li>Right-click <strong>your own name</strong> (any message or the member list) → <strong>Copy User ID</strong> → that's <code>OWNER_DISCORD_ID</code>.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Part B · Plug in &amp; run</h2>
+
+  <div class="step">
+    <div class="num">5</div>
+    <div>
+      <h3>Paste the 3 values into <code>bot/.env</code></h3>
+      <p>Open <code>/Users/tnt/Projects/priority-post/bot/.env</code> and replace the three placeholders:</p>
+      <pre><code>DISCORD_BOT_TOKEN=<span style="color:var(--green)">paste from step 2</span>
+DISCORD_CHANNEL_ID=<span style="color:var(--green)">paste from step 4</span>
+OWNER_DISCORD_ID=<span style="color:var(--green)">paste from step 4</span></code></pre>
+      <p class="small">Leave <code>WEB_BASE_URL</code>, <code>INTERNAL_API_SECRET</code>, and <code>ANTHROPIC_API_KEY</code> exactly as they are.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">6</div>
+    <div>
+      <h3>Start the bot</h3>
+      <pre><code>cd /Users/tnt/Projects/priority-post/bot
+pnpm install
+pnpm dev</code></pre>
+      <p>You should see a "logged in as …" line and no errors. Leave this terminal running.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">7</div>
+    <div>
+      <h3>Talk to it in Discord</h3>
+      <p>In the channel you picked, type:</p>
+      <div class="try">
+        <span>what's next?</span>
+        <span>add: call mom friday 3pm</span>
+        <span>how am I doing?</span>
+        <span>reschedule taxes to monday</span>
+        <span>mark the dentist task done</span>
+      </div>
+      <p style="margin-top:12px">It should reply with the ranked seed tasks and confirm each action it takes. Deletes ask for confirmation first.</p>
+    </div>
+  </div>
+
+  <h2>If something's off</h2>
+  <ul class="check">
+    <li><span class="box">›</span><span><strong>Bot online but ignores you</strong> → Message Content Intent is off (Step 2). Toggle it on, save, restart the bot.</span></li>
+    <li><span class="box">›</span><span><strong>Bot replies "401 / unauthorized"</strong> → <code>INTERNAL_API_SECRET</code> in <code>bot/.env</code> must equal <code>testsecret</code> (it already does — don't change it).</span></li>
+    <li><span class="box">›</span><span><strong>Bot can't reach the web app</strong> → the local server died. Restart it (box below).</span></li>
+    <li><span class="box">›</span><span><strong>No tasks show up</strong> → you're pointed at an empty DB; the seed lives in local Postgres on port 5433.</span></li>
+  </ul>
+
+  <div class="callout info">
+    <span class="ico">ⓘ</span>
+    <p><strong>Restart the local web app</strong> if it stopped — from the repo root:</p>
+  </div>
+  <pre><code>DATABASE_URL="postgresql://priority_post:priority_post_dev@localhost:5433/priority_post" \
+INTERNAL_API_SECRET=testsecret \
+pnpm dev</code></pre>
+
+  <h2>What this does &amp; doesn't prove</h2>
+  <div class="callout good">
+    <span class="ico">✓</span>
+    <p><strong>Proves:</strong> the full chain works — you type in Discord → the agent interprets it → it calls the web API → it acts on real DB rows → it replies. That's the whole feature, end to end.</p>
+  </div>
+  <div class="callout info">
+    <span class="ico">→</span>
+    <p><strong>Next, when you're happy:</strong> the <em>real-data go-live</em> — point the bot at your production tasks and run it 24/7. That means deploying <code>bot/</code> to Railway, setting <code>INTERNAL_API_SECRET</code> in Vercel, and applying the <code>sent_reminders</code> migration to Neon. Spec runbook §8 has the checklist; ask and I'll walk you through it.</p>
+  </div>
+
+  <footer>
+    priority-post · Discord planner (Phase 3, iteration 0) · local test path<br>
+    Source of truth: <code>bot/README.md</code> and <code>docs/superpowers/specs/2026-06-08-discord-planner-design.md</code>
+  </footer>
+
+</div>
+</body>
+</html>
