@@ -62,6 +62,11 @@ That's `OWNER_DISCORD_ID`. It's a long number, not your username.
 
 ## Step 3 — Add the environment variables in Vercel
 
+> ⚠️ **First: the endpoint has to exist in production.** `/api/discord` ships on the
+> `feat/discord-interactions` branch. Until that is merged to `main` and deployed,
+> production has no such route — the basic-auth proxy answers `401` to everything and
+> step 6 fails with *"could not be verified"*. Merge, wait for the deploy, then continue.
+
 Vercel dashboard → the `priority-post` project → **Settings** → **Environment
 Variables**. Add these three to **Production**:
 
@@ -198,7 +203,18 @@ Deletes always ask for confirmation first.
 ## Troubleshooting
 
 **Discord won't save the endpoint URL.**
-Nearly always one of: the deployment hasn't been redeployed since you added
+Check whether the endpoint is deployed at all, first:
+
+```bash
+curl -s -D- -o /dev/null -X POST -H "Content-Type: application/json" \
+  -d '{"type":1}' https://priority-post.vercel.app/api/discord | grep -i 'http/\|www-auth'
+```
+
+`401` **with** a `www-authenticate: Basic` header = the proxy answered, not the route; the
+code isn't deployed. `401` **without** it = the signature check working correctly on an
+unsigned request. `200` = it verified the PING.
+
+If it is deployed, it's nearly always one of: the deployment hasn't been redeployed since you added
 `DISCORD_PUBLIC_KEY`; the key was pasted with a stray space; or you pasted the
 Application ID into the public key field. Redeploy, then re-check the value.
 

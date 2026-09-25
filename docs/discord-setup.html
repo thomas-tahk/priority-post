@@ -163,6 +163,12 @@
 <section class="step" data-step="3">
   <div class="step-head"><span class="num">3</span><h2>Add the environment variables in Vercel</h2></div>
   <div class="step-body">
+    <div class="note"><strong>First: the endpoint has to exist in production.</strong>
+    <code>/api/discord</code> ships on the <code>feat/discord-interactions</code> branch. Until that is
+    merged to <code>main</code> and deployed, production has no such route — the basic-auth proxy answers
+    <code>401</code> to everything, and step 6 fails with <em>"could not be verified"</em>.
+    Merge the PR, wait for the Vercel deploy to go green, then continue.</div>
+
     <p>Vercel → <code>priority-post</code> → <strong>Settings</strong> → <strong>Environment Variables</strong>.
     Add these three to <strong>Production</strong>:</p>
     <table>
@@ -266,7 +272,13 @@ confirmation first.</p>
 <h3>Troubleshooting</h3>
 <div class="trouble">
   <p><strong>Discord won't save the endpoint URL.</strong><br />
-  Nearly always one of: the deployment hasn't been redeployed since you added
+  Check whether the endpoint is deployed at all before touching anything else:</p>
+<pre><code>curl -s -D- -o /dev/null -X POST -H "Content-Type: application/json" \
+  -d '{"type":1}' https://priority-post.vercel.app/api/discord | grep -i 'http/\|www-auth'</code></pre>
+  <p>A <code>401</code> with a <code>www-authenticate: Basic</code> header means the proxy answered, not
+  the route — the code isn't deployed. A <code>401</code> <em>without</em> that header is the signature
+  check working correctly on an unsigned request. A <code>200</code> means it verified the PING.</p>
+  <p>If it is deployed, it's nearly always one of: the deployment hasn't been redeployed since you added
   <code>DISCORD_PUBLIC_KEY</code>; the key was pasted with a stray space; or the Application ID went
   into the public key field. Redeploy, then re-check the value.</p>
 
