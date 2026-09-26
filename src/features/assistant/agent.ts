@@ -49,6 +49,7 @@ function systemPrompt(now: Date, timezone: string): string {
     `Act directly when asked, then confirm in one short line (e.g. "✅ added 'call dentist'", "📅 moved taxes to Friday 3pm").`,
     `For deletes: only call delete_task AFTER the owner has clearly confirmed in this conversation; otherwise ask them to confirm first.`,
     `Never invent task ids — call list_tasks or get_digest first if you're unsure which task they mean.`,
+    `If a tool returns an error, say plainly that you could not reach their tasks and quote the error. Never report a failed tool as an empty or unchanged result — "you have no tasks" must only ever come from a tool that actually succeeded and returned nothing.`,
     // The offset is supplied rather than inferred, and the model is told to
     // write the wall-clock time unconverted. Asking it to convert produced
     // times six hours off: it did the arithmetic AND stamped the offset, so
@@ -122,6 +123,10 @@ export async function runAgent(
 ): Promise<{ reply: string; messages: Anthropic.MessageParam[] }> {
   const { now, timezone, temperature } = context;
   const messages: Anthropic.MessageParam[] = [...history];
+  // A broken tool must never reach the owner as "you have no tasks". The model
+  // is told as much, but a prompt is not a guarantee, so unrecovered failures
+  // are also appended to the reply by the code.
+  const failed = new Set<string>();
 
   for (let round = 0; round < MAX_ROUNDS; round++) {
     const res = await anthropic.messages.create({
@@ -135,7 +140,7 @@ export async function runAgent(
     messages.push({ role: "assistant", content: res.content });
 
     if (res.stop_reason !== "tool_use") {
-      return { reply: textOf(res.content) || "(done)", messages };
+      return { reply: withFailureNotice(textOf(res.content) || "(done)", failed), messages };
     }
 
     const results: Anthropic.ToolResultBlockParam[] = [];
@@ -143,14 +148,34 @@ export async function runAgent(
       if (block.type !== "tool_use") continue;
       try {
         const out = await runTool(block.name, (block.input ?? {}) as Record<string, unknown>, api);
+        failed.delete(block.name); // a retry that worked clears the earlier failure
         results.push({ type: "tool_result", tool_use_id: block.id, content: out });
       } catch (e) {
         const msg = e instanceof Error ? e.message : "tool failed";
-        results.push({ type: "tool_result", tool_use_id: block.id, content: msg, is_error: true });
+        failed.add(block.name);
+        results.push({
+          type: "tool_result",
+          tool_use_id: block.id,
+          // Spelled out because the failure mode we hit was the model reading a
+          // broken call as an empty result and cheerfully reporting no tasks.
+          content: `TOOL FAILED — this is an error, not data. Do not describe the owner's tasks as empty or unchanged because of it. ${msg}`,
+          is_error: true,
+        });
       }
     }
     messages.push({ role: "user", content: results });
   }
 
-  return { reply: "I got tangled up mid-task — mind trying that again?", messages };
+  return {
+    reply: withFailureNotice("I got tangled up mid-task — mind trying that again?", failed),
+    messages,
+  };
+}
+
+/** Appends an unmissable note when a tool never succeeded this turn, so a reply
+ *  written from missing data cannot read as a confident answer. */
+function withFailureNotice(reply: string, failed: Set<string>): string {
+  if (failed.size === 0) return reply;
+  const names = [...failed].sort().join(", ");
+  return `${reply}\n\n⚠️ Couldn't reach your planner data (${names} failed), so this answer may be wrong or incomplete.`;
 }

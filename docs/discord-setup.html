@@ -180,8 +180,15 @@
     <p>These should already be there from the hourly tick — check, don't re-add:
     <code>DATABASE_URL</code>, <code>ANTHROPIC_API_KEY</code>, <code>APP_PASSWORD</code>,
     <code>INTERNAL_API_SECRET</code>, <code>DISCORD_WEBHOOK_URL</code>.</p>
-    <p>Optional: <code>APP_TIMEZONE</code> (defaults to <code>America/Denver</code>) and
-    <code>WEB_BASE_URL</code> (defaults to the deployment's own URL, which is what you want).</p>
+    <p>Optional: <code>APP_TIMEZONE</code> (defaults to <code>America/Denver</code>).</p>
+    <div class="note"><strong>A correction.</strong> An earlier version of this guide called
+    <code>WEB_BASE_URL</code> optional because it &ldquo;defaults to the deployment's own URL, which is
+    what you want.&rdquo; That was wrong, and it cost an evening. <code>VERCEL_URL</code> is the
+    <em>per-deployment</em> host, which sits behind Vercel's deployment-protection wall &mdash; so
+    <code>/pp</code> reached a login page instead of the app and reported an empty task list.
+    <code>/api/discord</code> no longer makes that call at all; it reads the database directly.
+    <code>WEB_BASE_URL</code> now matters only to <code>pnpm repl</code>, which really does run in
+    another process.</div>
     <div class="note"><strong>Do not skip the redeploy.</strong> Vercel only picks up new variables on the
     next build: <strong>Deployments</strong> → newest → <strong>⋯</strong> → <strong>Redeploy</strong>.</div>
   </div>
@@ -290,6 +297,17 @@ confirmation first.</p>
   The acknowledgement landed but the follow-up didn't. Vercel → <strong>Logs</strong>, look for
   <code>discord follow-up failed:</code> — the line says what Discord refused.</p>
 
+  <p><strong>It answers, but says your task list is empty when it isn't.</strong><br />
+  A real bug, fixed 2026-09-26, and worth knowing the shape of. <code>/api/discord</code> used to fetch
+  its own <code>/api/internal/*</code> over HTTPS at <code>VERCEL_URL</code> &mdash; the per-deployment
+  host, which Vercel's deployment protection answers with a <code>302</code> to an SSO login page.
+  <code>fetch</code> followed it, got <code>200 text/html</code>, and the JSON client returned
+  <code>undefined</code> rather than throwing. The agent read that as &ldquo;no tasks.&rdquo; The
+  endpoint now reads the database directly, so the hop cannot fail. If you ever see a
+  confident-but-wrong answer again, the reply will carry
+  <code>&#9888; Couldn't reach your planner data</code> &mdash; a tool failure can no longer be
+  reported as data.</p>
+
   <p><strong>Someone else's <code>/pp</code> does nothing useful.</strong><br />
   Working as designed. They get “This planner only answers to its owner.” — ephemeral, so nobody else
   in the channel sees it either.</p>
@@ -305,8 +323,10 @@ confirmation first.</p>
   night. Its 40-case eval survived the move — it lives in <code>src/features/assistant/eval</code>
   (<code>pnpm eval</code>) and now scores the agent that actually answers.</p>
   <p>Security boundary, in order: Discord's Ed25519 signature (the request is from Discord and unaltered)
-  → your user ID (it's you) → <code>INTERNAL_API_SECRET</code> (the endpoint talking to the app's own
-  API). The basic-auth password doesn't apply here; <code>/api/discord</code> is exempt in
+  → your user ID (it's you). Past those two the endpoint reads and writes the database directly, so there
+  is no third hop and no secret it has to present to itself. <code>INTERNAL_API_SECRET</code> still guards
+  <code>/api/internal/*</code> for its real remote callers &mdash; the hourly tick and <code>pnpm repl</code>.
+  The basic-auth password doesn't apply here; <code>/api/discord</code> is exempt in
   <code>src/proxy.ts</code>, as <code>/api/internal</code> already was.</p>
   <p>Times resolve in <code>APP_TIMEZONE</code>, stated explicitly to the model. Vercel functions run in
   UTC and cannot be changed — which is exactly why the zone is named rather than inferred.</p>

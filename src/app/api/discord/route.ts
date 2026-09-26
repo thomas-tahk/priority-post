@@ -1,7 +1,7 @@
 import { after } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { runAgent } from "@/features/assistant/agent";
-import { HttpPlannerApi } from "@/features/assistant/api";
+import { DbPlannerApi } from "@/features/assistant/dbApi";
 import { trimHistory } from "@/features/assistant/history";
 import { appendExchange, clearTurns, loadTurns } from "@/features/assistant/queries";
 import { editDeferredReply } from "@/features/assistant/followup";
@@ -88,7 +88,8 @@ async function produce(decision: Decision): Promise<string> {
   }
   if (decision.kind !== "run") return "(nothing to do)";
 
-  const api = new HttpPlannerApi(baseUrl(), required("INTERNAL_API_SECRET"));
+  // Direct DB access, not a fetch to our own deployment: see dbApi.ts.
+  const api = new DbPlannerApi();
   const anthropic = new Anthropic({ apiKey: required("ANTHROPIC_API_KEY") });
 
   const history = await loadTurns();
@@ -110,15 +111,6 @@ async function produce(decision: Decision): Promise<string> {
   );
 
   return reply;
-}
-
-/** Where the planner's own internal API lives. Vercel sets VERCEL_URL per
- * deployment; locally it is the dev server. */
-function baseUrl(): string {
-  const explicit = process.env.WEB_BASE_URL;
-  if (explicit) return explicit.replace(/\/$/, "");
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return "http://localhost:3000";
 }
 
 function required(name: string): string {

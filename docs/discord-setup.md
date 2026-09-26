@@ -80,8 +80,15 @@ These should already be there from the hourly tick — check, don't re-add:
 `DATABASE_URL`, `ANTHROPIC_API_KEY`, `APP_PASSWORD`, `INTERNAL_API_SECRET`,
 `DISCORD_WEBHOOK_URL`.
 
-Optional: `APP_TIMEZONE` (defaults to `America/Denver`) and `WEB_BASE_URL`
-(defaults to the deployment's own URL, which is what you want).
+Optional: `APP_TIMEZONE` (defaults to `America/Denver`).
+
+> An earlier version of this guide said `WEB_BASE_URL` was optional because it
+> "defaults to the deployment's own URL, which is what you want." That was wrong,
+> and it cost an evening. `VERCEL_URL` is the *per-deployment* host, which sits
+> behind Vercel's deployment-protection wall — so `/pp` reached a login page
+> instead of the app and reported an empty task list. `/api/discord` no longer
+> makes that call at all; it reads the database directly. `WEB_BASE_URL` now
+> matters only to `pnpm repl`, which really does run in another process.
 
 **Do not skip the redeploy.** Vercel only picks up new variables on the next
 build: **Deployments** → newest → **⋯** → **Redeploy**.
@@ -227,6 +234,17 @@ the log names which one.
 The acknowledgement landed but the follow-up didn't. Vercel → **Logs**, look for
 `discord follow-up failed:` — the line says what Discord refused.
 
+**It answers, but says your task list is empty when it isn't.**
+This was a real bug, fixed on 2026-09-26, and it is worth knowing the shape of it.
+`/api/discord` used to fetch its own `/api/internal/*` over HTTPS at `VERCEL_URL` —
+the per-deployment host, which Vercel's deployment protection answers with a `302`
+to an SSO login page. `fetch` followed it, got `200 text/html`, and the JSON client
+returned `undefined` rather than throwing. The agent read that as "no tasks."
+The endpoint now reads the database directly, so the hop cannot fail. If you ever
+see a confident-but-wrong answer again, the reply will now carry
+`⚠️ Couldn't reach your planner data` — a tool failure can no longer be reported
+as data.
+
 **Someone else's `/pp` does nothing useful.**
 Working as designed. They get "This planner only answers to its owner." — ephemeral,
 so nobody else in the channel sees it either.
@@ -246,9 +264,12 @@ will land; it just isn't instant.
   `src/features/assistant/eval` (`pnpm eval`), where it scores the agent that
   actually answers. Its June setup guide is kept in `docs/archive/`.
 - Security boundary, in order: Discord's Ed25519 signature (proves the request is
-  from Discord and unaltered) → your user ID (proves it's you) → `INTERNAL_API_SECRET`
-  (the endpoint talking to the app's own API). The basic-auth password does not
-  apply here; `/api/discord` is exempt in `src/proxy.ts`, as `/api/internal` already was.
+  from Discord and unaltered) → your user ID (proves it's you). Past those two, the
+  endpoint reads and writes the database directly, so there is no third hop and no
+  secret it has to present to itself. `INTERNAL_API_SECRET` still guards
+  `/api/internal/*` for its real remote callers — the hourly tick and `pnpm repl`.
+  The basic-auth password does not apply here; `/api/discord` is exempt in
+  `src/proxy.ts`, as `/api/internal` already was.
 - Times are resolved in `APP_TIMEZONE`, stated explicitly to the model. Vercel
   functions run in UTC and cannot be changed, which is exactly why the zone is
   named rather than inferred.
