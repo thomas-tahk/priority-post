@@ -307,6 +307,20 @@ const ambiguity: Case[] = [
     message: "delete it",
     expect: { forbidden: ["delete_task"] },
   },
+  // Not invented: the owner typed this shape at the live assistant on
+  // 2026-09-27 and it created the task and completed it in the same second.
+  // A time phrase hanging off "mark it complete" is when he intends to finish
+  // it, not an instruction to finish it now. Creating and completing in one
+  // breath is a no-op with a receipt — nobody asks for that.
+  {
+    id: "am-06",
+    category: "ambiguity",
+    message: "add swap the AP uplink then mark it complete before end of day",
+    expect: {
+      calls: [{ tool: "add_task", args: { title: { contains: "uplink" }, start_at: { any: true } } }],
+      forbidden: ["complete_task"],
+    },
+  },
 ];
 
 export const CASES: Case[] = [

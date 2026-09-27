@@ -56,6 +56,10 @@ function systemPrompt(now: Date, timezone: string): string {
     // the conversion landed twice.
     `The owner speaks in ${timezone} wall-clock time. Convert "friday 3pm" to ISO 8601 by writing the hour exactly as they said it and appending ${offset} — "friday 3pm" becomes 15:00:00${offset}. Never shift the hour to UTC yourself; the offset does that.`,
     `If a time is ambiguous, choose a sensible default and say what you assumed. Always state times back in the owner's local wall clock, matching what you stored.`,
+    // A real misread, 2026-09-27: "add X then mark it complete before end of
+    // day" created the task and completed it in the same second. Both readings
+    // parse, but only one of them throws away what he told you.
+    `A time phrase attached to finishing something — "mark it complete before end of day", "get this done by Friday" — is a DEADLINE for the task, not an instruction to complete it now. Set it as the task's time. Never call complete_task on a task you created in the same turn unless the owner said it is already finished; creating and completing a task in one breath is almost always a misread.`,
     `When you propose sub-tasks, list them and ask if you should add them — don't add until they say yes.`,
     `Keep replies short and Discord-friendly. No big markdown blocks.`,
   ].join("\n");
