@@ -108,3 +108,99 @@ describe("runAgent", () => {
     expect(requests[0]).not.toHaveProperty("temperature");
   });
 });
+
+// A tool that fails must never be reportable as "you have nothing to do". The
+// system prompt says so, but the prompt is a request; this is the guarantee.
+describe("runAgent tool failures", () => {
+  const ctx = { now: new Date("2026-06-08T12:00:00Z"), timezone: "America/Denver" };
+
+  function failingApi(fail: Partial<Record<keyof PlannerApi, boolean>>): PlannerApi {
+    const { api } = fakeApi();
+    return new Proxy(api, {
+      get: (target, prop: string) =>
+        fail[prop as keyof PlannerApi]
+          ? async () => {
+              throw new Error("planner API GET /api/internal/digest → 401 unauthorized");
+            }
+          : target[prop as keyof PlannerApi],
+    }) as PlannerApi;
+  }
+
+  it("warns the owner when a tool failed and the model claimed everything was fine", async () => {
+    const anthropic = fakeAnthropic([
+      { stop_reason: "tool_use", content: [{ type: "tool_use", id: "t1", name: "get_digest", input: {} }] },
+      { stop_reason: "end_turn", content: [{ type: "text", text: "Your task list is completely empty! 🎉" }] },
+    ]);
+
+    const { reply } = await runAgent(
+      [{ role: "user", content: "what's next?" }],
+      failingApi({ getDigest: true }),
+      anthropic,
+      ctx
+    );
+
+    expect(reply).toMatch(/Couldn't reach your planner data/);
+    expect(reply).toContain("get_digest");
+  });
+
+  it("labels the tool result as an error rather than data", async () => {
+    const anthropic = fakeAnthropic([
+      { stop_reason: "tool_use", content: [{ type: "tool_use", id: "t1", name: "get_digest", input: {} }] },
+      { stop_reason: "end_turn", content: [{ type: "text", text: "ok" }] },
+    ]);
+
+    const { messages } = await runAgent(
+      [{ role: "user", content: "what's next?" }],
+      failingApi({ getDigest: true }),
+      anthropic,
+      ctx
+    );
+
+    const result = (messages[2].content as Anthropic.ToolResultBlockParam[])[0];
+    expect(result.is_error).toBe(true);
+    expect(result.content).toMatch(/TOOL FAILED/);
+    expect(result.content).toMatch(/401 unauthorized/);
+  });
+
+  it("stays quiet when a retry of the same tool succeeds", async () => {
+    let firstCall = true;
+    const { api } = fakeApi();
+    const flaky: PlannerApi = {
+      ...api,
+      getDigest: async () => {
+        if (firstCall) {
+          firstCall = false;
+          throw new Error("transient");
+        }
+        return { top: [], overdueTasks: [], idleGoals: [] };
+      },
+    };
+    const anthropic = fakeAnthropic([
+      { stop_reason: "tool_use", content: [{ type: "tool_use", id: "t1", name: "get_digest", input: {} }] },
+      { stop_reason: "tool_use", content: [{ type: "tool_use", id: "t2", name: "get_digest", input: {} }] },
+      { stop_reason: "end_turn", content: [{ type: "text", text: "Nothing due today." }] },
+    ]);
+
+    const { reply } = await runAgent([{ role: "user", content: "what's next?" }], flaky, anthropic, ctx);
+
+    expect(reply).toBe("Nothing due today.");
+  });
+
+  it("warns even when the loop runs out of rounds", async () => {
+    const anthropic = fakeAnthropic(
+      Array.from({ length: 6 }, () => ({
+        stop_reason: "tool_use",
+        content: [{ type: "tool_use", id: "t", name: "list_tasks", input: {} }],
+      }))
+    );
+
+    const { reply } = await runAgent(
+      [{ role: "user", content: "what's next?" }],
+      failingApi({ listTasks: true }),
+      anthropic,
+      ctx
+    );
+
+    expect(reply).toMatch(/Couldn't reach your planner data/);
+  });
+});

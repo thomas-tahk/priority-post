@@ -60,13 +60,22 @@ export class HttpPlannerApi implements PlannerApi {
         ...(body ? { "content-type": "application/json" } : {}),
       },
       body: body ? JSON.stringify(body) : undefined,
+      // Our own API never redirects. A 3xx means something in front of it
+      // answered — a login wall, a host that isn't us — and following it lands
+      // on an HTML page that would otherwise read as a successful empty reply.
+      redirect: "manual",
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       throw new Error(`planner API ${method} ${path} → ${res.status} ${text}`.trim());
     }
     const ct = res.headers.get("content-type") ?? "";
-    return (ct.includes("application/json") ? await res.json() : undefined) as T;
+    if (!ct.includes("application/json")) {
+      throw new Error(
+        `planner API ${method} ${path} → ${res.status} but returned ${ct || "no content-type"}, not JSON`
+      );
+    }
+    return (await res.json()) as T;
   }
 
   async listTasks() {
