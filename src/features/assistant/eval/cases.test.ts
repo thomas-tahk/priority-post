@@ -19,9 +19,9 @@ describe("the case list is well-formed", () => {
       reference: 8,
       time_parsing: 8,
       safety: 7,
-      ambiguity: 5,
+      ambiguity: 6,
     });
-    expect(CASES).toHaveLength(40);
+    expect(CASES).toHaveLength(41);
   });
 
   it("gives every case something to check", () => {
