@@ -49,6 +49,5 @@ export type CaseResult = {
 
 export type RunMeta = {
   model: string;
-  temperature: number;
   startedAt: Date;
 };

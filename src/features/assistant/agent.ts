@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { PlannerApi } from "./api";
 import { describeNow, utcOffset } from "./localtime";
 
-export const MODEL = "claude-sonnet-4-6";
+export const MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 1024;
 const MAX_ROUNDS = 5;
 
@@ -115,17 +115,14 @@ function textOf(content: Anthropic.ContentBlock[]): string {
  * Run one conversational turn. `history` is the running message list (caller has
  * already appended the new user message). Returns the reply text and the updated
  * message list (including assistant + tool turns) so the caller can persist it.
- *
- * `temperature` is for the eval harness, which needs reproducible runs. Omitting it
- * leaves the request exactly as production sends it (API default).
  */
 export async function runAgent(
   history: Anthropic.MessageParam[],
   api: PlannerApi,
   anthropic: Anthropic,
-  context: { now: Date; timezone: string; temperature?: number }
+  context: { now: Date; timezone: string }
 ): Promise<{ reply: string; messages: Anthropic.MessageParam[] }> {
-  const { now, timezone, temperature } = context;
+  const { now, timezone } = context;
   const messages: Anthropic.MessageParam[] = [...history];
   // A broken tool must never reach the owner as "you have no tasks". The model
   // is told as much, but a prompt is not a guarantee, so unrecovered failures
@@ -139,7 +136,6 @@ export async function runAgent(
       system: systemPrompt(now, timezone),
       tools: TOOLS,
       messages,
-      ...(temperature === undefined ? {} : { temperature }),
     });
     messages.push({ role: "assistant", content: res.content });
 

@@ -5,7 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { Goal } from "@/db/schema";
 import type { ProgressStats } from "./digest";
 
-const MODEL = "claude-sonnet-4-6";
+const MODEL = "claude-sonnet-5";
 
 type Deps = { client?: Anthropic; apiKey?: string };
 

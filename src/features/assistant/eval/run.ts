@@ -11,7 +11,6 @@ loadEnv({ path: ".env.local" });
 loadEnv();
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import Anthropic from "@anthropic-ai/sdk";
 import { MODEL, runAgent } from "../agent";
 import { CASES } from "./cases";
@@ -20,10 +19,12 @@ import { erroredCase, scoreCase, toHistory } from "./score";
 import { FIXED_NOW, makeWorld, TIMEZONE } from "./world";
 import type { CaseResult, RunMeta } from "./types";
 
-const TEMPERATURE = 0;
 const DELAY_MS = 400; // stay clear of rate limits; cases run sequentially
 
-const REPORTS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "reports");
+// Resolved from the repo root, not from `import.meta.url`: tsx runs this file as
+// CommonJS (package.json has no `"type": "module"`), where `import.meta` is not
+// available. `pnpm eval` always runs from the root.
+const REPORTS_DIR = path.join(process.cwd(), "src/features/assistant/eval/reports");
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -42,7 +43,7 @@ async function runCase(caseDef: (typeof CASES)[number], anthropic: Anthropic): P
       toHistory(caseDef),
       api,
       anthropic,
-      { now: FIXED_NOW, timezone: TIMEZONE, temperature: TEMPERATURE }
+      { now: FIXED_NOW, timezone: TIMEZONE }
     );
     return scoreCase(caseDef, messages, reply);
   } catch (e) {
@@ -61,10 +62,10 @@ async function main(): Promise<void> {
   }
 
   const anthropic = new Anthropic({ apiKey });
-  const meta: RunMeta = { model: MODEL, temperature: TEMPERATURE, startedAt: new Date() };
+  const meta: RunMeta = { model: MODEL, startedAt: new Date() };
   const results: CaseResult[] = [];
 
-  console.log(`Running ${CASES.length} cases against ${MODEL} (temperature ${TEMPERATURE})...\n`);
+  console.log(`Running ${CASES.length} cases against ${MODEL}...\n`);
 
   for (const [i, caseDef] of CASES.entries()) {
     const result = await runCase(caseDef, anthropic);
@@ -87,4 +88,8 @@ async function main(): Promise<void> {
 
 // No argv guard here — this module exists only to be executed. The pure logic
 // lives in score.ts, so tests never import this file and never fire a request.
-await main();
+// Not top-level await: tsx compiles this to CommonJS, which cannot have one.
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

@@ -4,7 +4,6 @@ import type { CaseResult, RunMeta } from "./types";
 
 const META: RunMeta = {
   model: "claude-sonnet-4-6",
-  temperature: 0,
   startedAt: new Date("2026-07-19T15:04:00-06:00"),
 };
 
@@ -72,10 +71,9 @@ describe("summarize", () => {
 });
 
 describe("renderScorecard", () => {
-  it("shows the run header with model and temperature", () => {
+  it("shows the run header with model and case count", () => {
     const out = renderScorecard([result()], META);
     expect(out).toContain("claude-sonnet-4-6");
-    expect(out).toContain("temperature: 0");
     expect(out).toContain("cases: 1");
   });
 
