@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useOptimistic, useRef, useTransition, type ReactNode, type RefObject } from "react";
+import { useOptimistic, useRef, useTransition, type RefObject } from "react";
 import {
   DndContext,
   closestCenter,
@@ -109,14 +109,9 @@ function SortableRow({
 export function SortableTaskList({
   tasks,
   onOpen,
-  afterTop,
 }: {
   tasks: ScoredTask[];
   onOpen: (t: Task) => void;
-  // Rendered between the top task and the rest. SortableContext registers rows
-  // by id rather than by DOM position, so a static node between them does not
-  // affect dragging.
-  afterTop?: ReactNode;
 }) {
   const [, startTransition] = useTransition();
   const [optimistic, setOptimistic] = useOptimistic(
@@ -161,10 +156,7 @@ export function SortableTaskList({
     >
       <SortableContext items={optimistic.map((t) => t.id)} strategy={verticalListSortingStrategy}>
         {optimistic.map((t, i) => (
-          <Fragment key={t.id}>
-            <SortableRow task={t} isTop={i === 0} onOpen={onOpen} didDragRef={didDragRef} />
-            {i === 0 && afterTop}
-          </Fragment>
+          <SortableRow key={t.id} task={t} isTop={i === 0} onOpen={onOpen} didDragRef={didDragRef} />
         ))}
       </SortableContext>
     </DndContext>

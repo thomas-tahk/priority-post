@@ -1,27 +1,13 @@
 import type { Digest } from "./digest";
-import type { FoundryItem } from "@/features/foundry/types";
 import type { Gate, Track } from "@/features/goals/objectives";
 import type { ActivityEntry } from "@/features/activity/parse";
 
 // The digest as a person reads it on a phone. The bot has its own copy of this
-// for the chat path; this one is the web app's, and it is the only one that
-// knows about the factory.
+// for the chat path; this one is the web app's.
 
 function taskLine(t: { title: string; startAt: string | null }): string {
   const when = t.startAt ? ` · <t:${Math.floor(Date.parse(t.startAt) / 1000)}:R>` : "";
   return `• **${t.title}**${when}`;
-}
-
-const FACTORY_HEADING: Record<FoundryItem["state"], string> = {
-  build_failing: "🔴",
-  waiting_on_you: "🏭",
-  draft_ready: "📄",
-  branch_stranded: "🌱",
-};
-
-function factoryLine(item: FoundryItem): string {
-  const repo = item.repo.includes("/") ? item.repo.split("/")[1] : item.repo;
-  return `${FACTORY_HEADING[item.state]} **${item.summary}** — ${repo}`;
 }
 
 function gateLine(g: Gate): string {
@@ -47,19 +33,17 @@ function activityLine(a: ActivityEntry): string {
 
 export type Objectives = { gates: Gate[]; tracks: Track[] };
 
-/** The evening message: the dates first, then your own work, then the factory.
+/** The evening message: the dates first, then your own work.
  *
  * Gates lead because they are the only things here whose date he did not
- * choose. The factory goes last on purpose: it produces items on its own
- * schedule, and a list that leads with machine output stops reading as his. */
+ * choose. Machine output goes last, so the list keeps reading as his. */
 export function formatEveningDigest(input: {
   digest: Digest;
   objectives?: Objectives;
   activity?: ActivityEntry[];
-  factory?: FoundryItem[];
   missedDays?: number;
 }): string {
-  const { digest, objectives, activity = [], factory = [], missedDays = 0 } = input;
+  const { digest, objectives, activity = [], missedDays = 0 } = input;
   const parts: string[] = ["🌆 **Evening. Here's tonight.**"];
 
   if (objectives && objectives.gates.length > 0) {
@@ -96,9 +80,5 @@ export function formatEveningDigest(input: {
   if (activity.length > 0) {
     parts.push("\n__What the assistant did__\n" + activity.map(activityLine).join("\n"));
   }
-  if (factory.length > 0) {
-    parts.push("\n__The factory needs you__\n" + factory.map(factoryLine).join("\n"));
-  }
-
   return parts.join("\n");
 }
