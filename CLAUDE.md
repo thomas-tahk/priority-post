@@ -13,8 +13,10 @@ constellation (packed bubbles, color = category, size = score). Dark mode suppor
 - Drizzle ORM. Standard SQL only — **no Postgres-only features (jsonb queries, FTS) until phase 3.**
   Keeps the DB swappable.
 - Anthropic SDK, server-side only. Never expose API key to client.
-  - **Haiku 4.5 (`claude-haiku-4-5-20251001`)** for task triage (high-frequency, simple classification)
-  - **Sonnet 4.6 (`claude-sonnet-4-6`)** for "Why this order?" and "Ask AI" prose
+  - **Haiku 4.5 (`claude-haiku-4-5`)** for task triage (high-frequency, simple classification).
+    No date suffix — the bare id is the current one.
+  - **Sonnet 5 (`claude-sonnet-5`)** for the Discord agent, "Why this order?" and "Ask AI" prose.
+    Sonnet 5 rejects `temperature`, `top_p` and `top_k` with a 400 — never send one.
   - Prompt caching on system prompt + active task list
 - pnpm.
 - **Auth: HTTP basic auth via `src/proxy.ts`** (single `APP_PASSWORD` env var). Single-user app, browser handles credential storage. Full Auth.js v5 + Resend magic-link implementation is on the unmerged `phase-2-prod` branch — revive only if multi-user becomes a requirement.

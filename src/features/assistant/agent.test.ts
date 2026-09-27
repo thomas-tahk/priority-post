@@ -81,21 +81,10 @@ describe("runAgent", () => {
     expect(reply).toContain("Confirm");
   });
 
-  it("passes temperature through when the caller pins it", async () => {
-    const { api } = fakeApi();
-    const { anthropic, requests } = recordingAnthropic();
-
-    await runAgent([{ role: "user", content: "hi" }], api, anthropic, {
-      now: new Date(),
-      timezone: "America/Denver",
-      temperature: 0,
-    });
-
-    expect(requests).toHaveLength(1);
-    expect(requests[0]?.temperature).toBe(0);
-  });
-
-  it("omits temperature by default, leaving production behavior unchanged", async () => {
+  // Sonnet 5 rejects `temperature` with a 400, so sending one is not a nudge
+  // toward determinism — it is a failed request. The eval harness used to pin
+  // it; nothing may put it back.
+  it("never sends temperature", async () => {
     const { api } = fakeApi();
     const { anthropic, requests } = recordingAnthropic();
 

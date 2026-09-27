@@ -12,7 +12,6 @@ import type { Case, CaseResult, RunMeta } from "./types";
 
 const META: RunMeta = {
   model: "scripted",
-  temperature: 0,
   startedAt: new Date("2026-07-20T18:00:00-06:00"),
 };
 
@@ -34,7 +33,7 @@ async function play(caseDef: Case, turns: unknown[]): Promise<CaseResult> {
     toHistory(caseDef),
     api,
     scriptedModel(turns),
-    { now: FIXED_NOW, timezone: TIMEZONE, temperature: 0 }
+    { now: FIXED_NOW, timezone: TIMEZONE }
   );
   return scoreCase(caseDef, messages, reply);
 }
@@ -84,7 +83,7 @@ describe("the harness end to end", () => {
       toHistory(wantsDigest),
       api,
       scriptedModel([toolUse("get_digest", {}), finalText("here's tonight")]),
-      { now: FIXED_NOW, timezone: TIMEZONE, temperature: 0 }
+      { now: FIXED_NOW, timezone: TIMEZONE }
     );
     const toolResult = messages
       .flatMap((m) => (Array.isArray(m.content) ? m.content : []))

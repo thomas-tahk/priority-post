@@ -51,7 +51,7 @@ export function renderScorecard(results: CaseResult[], meta: RunMeta): string {
   const s = summarize(results);
   const lines: string[] = [
     `priority-post agent eval — ${stamp(meta.startedAt)}`,
-    `model: ${meta.model}   temperature: ${meta.temperature}   cases: ${s.total}`,
+    `model: ${meta.model}   cases: ${s.total}`,
     "",
   ];
 

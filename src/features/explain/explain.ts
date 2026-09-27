@@ -1,4 +1,4 @@
-// Sprint 5: streaming Claude (Sonnet 4.6) prose for "Why this order?" and
+// Sprint 5: streaming Claude (Sonnet 5) prose for "Why this order?" and
 // "Ask AI about this task". Server-only — relies on Next env scoping to keep
 // ANTHROPIC_API_KEY out of the client bundle (same pattern as triage.ts).
 import Anthropic from "@anthropic-ai/sdk";
@@ -6,7 +6,7 @@ import type { Task } from "@/db/schema";
 import { WEIGHTS, score, timeOfDay } from "@/features/tasks/scorer";
 import { notesToPlainText } from "@/lib/notes";
 
-const MODEL = "claude-sonnet-4-6";
+const MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 1500;
 
 const SYSTEM_PERSONA = `You are the explainer for a personal smart to-do app called priority-post.
