@@ -128,6 +128,7 @@ export async function runAgent(
   // is told as much, but a prompt is not a guarantee, so unrecovered failures
   // are also appended to the reply by the code.
   const failed = new Set<string>();
+  const ran: string[] = [];
 
   for (let round = 0; round < MAX_ROUNDS; round++) {
     const res = await anthropic.messages.create({
@@ -140,7 +141,8 @@ export async function runAgent(
     messages.push({ role: "assistant", content: res.content });
 
     if (res.stop_reason !== "tool_use") {
-      return { reply: withFailureNotice(textOf(res.content) || "(done)", failed), messages };
+      const text = textOf(res.content) || emptyReply(res, ran);
+      return { reply: withFailureNotice(text, failed), messages };
     }
 
     const results: Anthropic.ToolResultBlockParam[] = [];
@@ -149,6 +151,7 @@ export async function runAgent(
       try {
         const out = await runTool(block.name, (block.input ?? {}) as Record<string, unknown>, api);
         failed.delete(block.name); // a retry that worked clears the earlier failure
+        ran.push(block.name);
         results.push({ type: "tool_result", tool_use_id: block.id, content: out });
       } catch (e) {
         const msg = e instanceof Error ? e.message : "tool failed";
@@ -170,6 +173,19 @@ export async function runAgent(
     reply: withFailureNotice("I got tangled up mid-task — mind trying that again?", failed),
     messages,
   };
+}
+
+/** What to say when the model ended its turn without writing anything. Names
+ *  the stop reason and the tools that ran, so "nothing happened" can't pass for
+ *  "done". Logged too: the block types are the evidence for why it went quiet. */
+function emptyReply(res: Anthropic.Message, ran: string[]): string {
+  console.error("assistant: empty reply", {
+    stop_reason: res.stop_reason,
+    blocks: res.content.map((b) => b.type),
+    ran,
+  });
+  const did = ran.length > 0 ? `Ran: ${[...new Set(ran)].join(", ")}.` : "No tools ran — nothing was changed.";
+  return `⚠️ The model stopped without replying (stop: ${res.stop_reason}). ${did}`;
 }
 
 /** Appends an unmissable note when a tool never succeeded this turn, so a reply
