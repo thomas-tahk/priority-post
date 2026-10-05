@@ -193,3 +193,33 @@ describe("runAgent tool failures", () => {
     expect(reply).toMatch(/Couldn't reach your planner data/);
   });
 });
+
+// A turn that ends with no text used to reply "(done)" — which read as success
+// while hiding whether anything had actually been changed.
+describe("runAgent empty replies", () => {
+  const ctx = { now: new Date("2026-06-08T12:00:00Z"), timezone: "America/Denver" };
+
+  it("says nothing was changed when the model stopped without text or tools", async () => {
+    const { api } = fakeApi();
+    const anthropic = fakeAnthropic([{ stop_reason: "end_turn", content: [{ type: "thinking", thinking: "" }] }]);
+
+    const { reply } = await runAgent([{ role: "user", content: "delete gym" }], api, anthropic, ctx);
+
+    expect(reply).not.toContain("(done)");
+    expect(reply).toMatch(/end_turn/);
+    expect(reply).toMatch(/nothing was changed/i);
+  });
+
+  it("names the tools that ran when the final turn has no text", async () => {
+    const { api } = fakeApi();
+    const anthropic = fakeAnthropic([
+      { stop_reason: "tool_use", content: [{ type: "tool_use", id: "t1", name: "add_task", input: { title: "milk" } }] },
+      { stop_reason: "max_tokens", content: [] },
+    ]);
+
+    const { reply } = await runAgent([{ role: "user", content: "add milk" }], api, anthropic, ctx);
+
+    expect(reply).toMatch(/max_tokens/);
+    expect(reply).toMatch(/add_task/);
+  });
+});
