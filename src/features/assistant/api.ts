@@ -15,6 +15,30 @@ export type CompactTask = {
   score: number;
 };
 
+export type CompactGoal = {
+  id: number;
+  name: string;
+  description: string | null;
+  color: string;
+  kind: string;
+  targetDate: string | null;
+  weeklyTarget: number | null;
+  milestone: string | null;
+  openTasks: number;
+  /** Calendar days until targetDate (negative once passed); null without a date. */
+  daysLeft: number | null;
+  /** Tasks done this Mon–Sun week; null without a weekly target. */
+  weekDone: number | null;
+};
+
+/** Raw goal fields as the caller sent them; validated by parseGoalFields. */
+export type GoalInput = Record<string, unknown>;
+
+export type GoalDisposition =
+  | { kind: "unassign" }
+  | { kind: "reassign"; targetGoalId: number }
+  | { kind: "delete" };
+
 export type Digest = {
   top: CompactTask[];
   overdueTasks: CompactTask[];
@@ -44,6 +68,11 @@ export interface PlannerApi {
   markReminder(taskId: number, kind: "due_soon" | "overdue"): Promise<void>;
   decomposeGoal(input: { goalId?: number; name?: string; description?: string }): Promise<string[]>;
   getProgress(days: number): Promise<ProgressResult>;
+  listGoals(): Promise<CompactGoal[]>;
+  createGoal(input: GoalInput): Promise<{ id: number }>;
+  updateGoal(id: number, patch: GoalInput): Promise<void>;
+  deleteGoal(id: number, disposition: GoalDisposition): Promise<void>;
+  setTaskGoal(taskId: number, goalId: number | null): Promise<void>;
 }
 
 export class HttpPlannerApi implements PlannerApi {
@@ -104,5 +133,20 @@ export class HttpPlannerApi implements PlannerApi {
   }
   async getProgress(days: number) {
     return this.call<ProgressResult>(`/api/internal/progress?days=${days}`, "GET");
+  }
+  async listGoals() {
+    return (await this.call<{ goals: CompactGoal[] }>("/api/internal/goals", "GET")).goals;
+  }
+  async createGoal(input: GoalInput) {
+    return this.call<{ id: number }>("/api/internal/goals", "POST", input);
+  }
+  async updateGoal(id: number, patch: GoalInput) {
+    await this.call(`/api/internal/goals/${id}`, "PATCH", patch);
+  }
+  async deleteGoal(id: number, disposition: GoalDisposition) {
+    await this.call(`/api/internal/goals/${id}`, "DELETE", disposition);
+  }
+  async setTaskGoal(taskId: number, goalId: number | null) {
+    await this.call(`/api/internal/tasks/${taskId}`, "PATCH", { goalId });
   }
 }

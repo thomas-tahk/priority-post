@@ -1,10 +1,22 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { PlannerApi } from "./api";
+import type { GoalInput, PlannerApi } from "./api";
+import { GOAL_COLORS } from "@/features/goals/colors";
+import { parseDisposition } from "@/features/goals/disposition";
 import { describeNow, utcOffset } from "./localtime";
 
 export const MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 1024;
 const MAX_ROUNDS = 5;
+
+const GOAL_FIELDS = {
+  name: { type: "string" },
+  description: { type: ["string", "null"] },
+  color: { type: "string", enum: [...GOAL_COLORS] },
+  kind: { type: "string", enum: ["gate", "track"] },
+  target_date: { type: ["string", "null"], description: "YYYY-MM-DD." },
+  weekly_target: { type: ["integer", "null"], description: "Tasks to finish per Mon–Sun week." },
+  milestone: { type: ["string", "null"] },
+};
 
 const TOOLS: Anthropic.Tool[] = [
   { name: "list_tasks", description: "List the open tasks, ranked by priority.", input_schema: { type: "object", properties: {} } },
@@ -39,16 +51,51 @@ const TOOLS: Anthropic.Tool[] = [
     input_schema: { type: "object", properties: { goal_id: { type: "integer" }, name: { type: "string" }, description: { type: "string" } } },
   },
   { name: "get_progress", description: "How the owner is doing over the last N days (default 7): a summary plus counts.", input_schema: { type: "object", properties: { days: { type: "integer" } } } },
+  {
+    name: "list_goals",
+    description: "List every goal with its shape and progress: open task count, days left (gates), tasks done this week vs weekly target (tracks).",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "add_goal",
+    description: "Create a goal. kind 'gate' = a dated, pass/fail deadline someone else set (target_date required). kind 'track' (default) = ongoing, measured by weekly_target and/or milestone.",
+    input_schema: { type: "object", properties: GOAL_FIELDS, required: ["name"] },
+  },
+  {
+    name: "update_goal",
+    description: "Change a goal. Send only the fields to change; null clears description, target_date, weekly_target or milestone.",
+    input_schema: { type: "object", properties: { id: { type: "integer" }, ...GOAL_FIELDS }, required: ["id"] },
+  },
+  {
+    name: "delete_goal",
+    description: "Permanently delete a goal. Only call AFTER the owner has confirmed AND chosen what happens to its tasks: unassign (keep, no goal), reassign (move to reassign_to goal), or delete (delete them too).",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: { type: "integer" },
+        tasks: { type: "string", enum: ["unassign", "reassign", "delete"] },
+        reassign_to: { type: "integer", description: "Goal id that takes the tasks; required when tasks is reassign." },
+      },
+      required: ["id", "tasks"],
+    },
+  },
+  {
+    name: "set_task_goal",
+    description: "Put a task under a goal, or pass goal_id null to take it off its goal.",
+    input_schema: { type: "object", properties: { task_id: { type: "integer" }, goal_id: { type: ["integer", "null"] } }, required: ["task_id", "goal_id"] },
+  },
 ];
 
 function systemPrompt(now: Date, timezone: string): string {
   const offset = utcOffset(now, timezone);
   return [
     `You are the planner for priority-post, a personal single-user to-do app. It is now ${describeNow(now, timezone)}.`,
-    `You manage the owner's real tasks: list, add, reschedule, complete, delete, break goals into sub-tasks, and report progress.`,
+    `You manage the owner's real tasks and goals: list, add, reschedule, complete, delete tasks; list, create, edit, delete goals and move tasks between them; break goals into sub-tasks; report progress.`,
     `Act directly when asked, then confirm in one short line (e.g. "✅ added 'call dentist'", "📅 moved taxes to Friday 3pm").`,
     `For deletes: only call delete_task AFTER the owner has clearly confirmed in this conversation; otherwise ask them to confirm first.`,
     `Never invent task ids — call list_tasks or get_digest first if you're unsure which task they mean.`,
+    `Goals group tasks. Never invent goal ids either — call list_goals first. Tasks carry a goalId; match it against list_goals to name a task's goal.`,
+    `For goal deletes: before calling delete_goal, tell the owner how many open tasks the goal has and ask both to confirm AND what should happen to those tasks — keep them without a goal, move them to another goal, or delete them too. Never pick that choice for them.`,
     `If a tool returns an error, say plainly that you could not reach their tasks and quote the error. Never report a failed tool as an empty or unchanged result — "you have no tasks" must only ever come from a tool that actually succeeded and returned nothing.`,
     // The offset is supplied rather than inferred, and the model is told to
     // write the wall-clock time unconverted. Asking it to convert produced
@@ -98,9 +145,39 @@ async function runTool(name: string, input: Record<string, unknown>, api: Planne
       });
     case "get_progress":
       return JSON.stringify(await api.getProgress(typeof input.days === "number" ? input.days : 7));
+    case "list_goals":
+      return JSON.stringify(await api.listGoals());
+    case "add_goal":
+      return JSON.stringify(await api.createGoal(goalInput(input)));
+    case "update_goal":
+      await api.updateGoal(Number(input.id), goalInput(input));
+      return JSON.stringify({ ok: true });
+    case "delete_goal":
+      await api.deleteGoal(Number(input.id), parseDisposition({ kind: input.tasks, targetGoalId: input.reassign_to }));
+      return JSON.stringify({ ok: true });
+    case "set_task_goal":
+      await api.setTaskGoal(Number(input.task_id), input.goal_id === null ? null : Number(input.goal_id));
+      return JSON.stringify({ ok: true });
     default:
       return JSON.stringify({ error: `unknown tool ${name}` });
   }
+}
+
+/** Tool input (snake_case) to the API's field names, keeping only the keys the
+ *  model sent: an absent key means "leave it", null means "clear it". */
+function goalInput(input: Record<string, unknown>): GoalInput {
+  const names: Record<string, string> = {
+    name: "name",
+    description: "description",
+    color: "color",
+    kind: "kind",
+    target_date: "targetDate",
+    weekly_target: "weeklyTarget",
+    milestone: "milestone",
+  };
+  const out: GoalInput = {};
+  for (const [from, to] of Object.entries(names)) if (from in input) out[to] = input[from];
+  return out;
 }
 
 function textOf(content: Anthropic.ContentBlock[]): string {

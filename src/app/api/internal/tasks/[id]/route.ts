@@ -6,6 +6,7 @@ import {
   updateTaskTitle,
   deleteTask,
 } from "@/features/tasks/actions";
+import { DbPlannerApi } from "@/features/assistant/dbApi";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,6 +42,17 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       await setTaskStartAt(id, new Date(body.startAt));
     } else {
       return new Response("invalid startAt", { status: 400 });
+    }
+  }
+
+  if ("goalId" in body) {
+    if (body.goalId !== null && typeof body.goalId !== "number") {
+      return new Response("goalId must be a number or null", { status: 400 });
+    }
+    try {
+      await new DbPlannerApi().setTaskGoal(id, body.goalId);
+    } catch (e) {
+      return new Response(e instanceof Error ? e.message : "invalid goalId", { status: 400 });
     }
   }
 

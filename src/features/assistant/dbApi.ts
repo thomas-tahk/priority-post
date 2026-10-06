@@ -25,7 +25,20 @@ import {
   updateTaskTitle,
 } from "@/features/tasks/actions";
 import { sortByScore } from "@/features/tasks/scorer";
-import type { CompactTask, Digest, DueEvent, PlannerApi, ProgressResult } from "./api";
+import { assignTaskGoal, createGoal, deleteGoal, updateGoal } from "@/features/goals/actions";
+import { compactGoals } from "@/features/goals/compact";
+import { checkShape, parseGoalFields } from "@/features/goals/fields";
+import { appTimezone } from "@/features/planner/clock";
+import type {
+  CompactGoal,
+  CompactTask,
+  Digest,
+  DueEvent,
+  GoalDisposition,
+  GoalInput,
+  PlannerApi,
+  ProgressResult,
+} from "./api";
 
 const MIN_PROGRESS_DAYS = 1;
 const MAX_PROGRESS_DAYS = 30;
@@ -107,6 +120,56 @@ export class DbPlannerApi implements PlannerApi {
     const stats = buildProgressStats(tasks, goals, now, clampDays(days));
     return { summary: await summarizeProgress(stats), stats };
   }
+
+  async listGoals(): Promise<CompactGoal[]> {
+    const { tasks, goals } = await loadTasksAndGoals();
+    return compactGoals(goals, tasks, new Date(), appTimezone());
+  }
+
+  async createGoal(input: GoalInput): Promise<{ id: number }> {
+    const fields = parseGoalFields(input);
+    if (!fields.name) throw new Error("name is required");
+    const kind = fields.kind ?? "track";
+    checkShape({ kind, targetDate: fields.targetDate ?? null });
+    const created = await createGoal({
+      ...fields,
+      name: fields.name,
+      color: fields.color ?? "other",
+      description: fields.description ?? undefined,
+      kind,
+    });
+    if (!created) throw new Error("could not create goal");
+    return created;
+  }
+
+  async updateGoal(id: number, patch: GoalInput): Promise<void> {
+    const goal = await requireGoal(id);
+    const fields = parseGoalFields(patch);
+    if (Object.keys(fields).length === 0) throw new Error("nothing to update");
+    checkShape({
+      kind: fields.kind ?? goal.kind,
+      targetDate: fields.targetDate !== undefined ? fields.targetDate : goal.targetDate,
+    });
+    await updateGoal(id, fields);
+  }
+
+  async deleteGoal(id: number, disposition: GoalDisposition): Promise<void> {
+    await requireGoal(id);
+    if (disposition.kind === "reassign") await requireGoal(disposition.targetGoalId);
+    await deleteGoal(id, disposition);
+  }
+
+  async setTaskGoal(taskId: number, goalId: number | null): Promise<void> {
+    requireTaskId(taskId);
+    if (goalId !== null) await requireGoal(goalId);
+    await assignTaskGoal(taskId, goalId);
+  }
+}
+
+async function requireGoal(id: number): Promise<Goal> {
+  const goal = Number.isInteger(id) && id > 0 ? await getGoal(id) : null;
+  if (!goal) throw new Error(`goal ${id} not found — call list_goals for real ids`);
+  return goal;
 }
 
 /** An existing goal by id, or an unsaved stand-in so "break down 'launch the

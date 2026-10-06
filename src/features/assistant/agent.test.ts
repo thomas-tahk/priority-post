@@ -18,6 +18,11 @@ function fakeApi(): { api: PlannerApi; calls: string[][] } {
       summary: "good",
       stats: { sinceDays: 7, completed: 1, created: 2, open: 3, overdueOpen: 0, idleGoals: 0 },
     }),
+    listGoals: async () => (calls.push(["listGoals"]), []),
+    createGoal: async (i) => (calls.push(["createGoal", JSON.stringify(i)]), { id: 7 }),
+    updateGoal: async (id, p) => void calls.push(["updateGoal", String(id), JSON.stringify(p)]),
+    deleteGoal: async (id, d) => void calls.push(["deleteGoal", String(id), JSON.stringify(d)]),
+    setTaskGoal: async (t, g) => void calls.push(["setTaskGoal", String(t), String(g)]),
   };
   return { api, calls };
 }
@@ -221,5 +226,50 @@ describe("runAgent empty replies", () => {
 
     expect(reply).toMatch(/max_tokens/);
     expect(reply).toMatch(/add_task/);
+  });
+});
+
+describe("runAgent goal tools", () => {
+  const ctx = { now: new Date("2026-10-06T12:00:00Z"), timezone: "America/Denver" };
+
+  async function runOneTool(name: string, input: Record<string, unknown>) {
+    const { api, calls } = fakeApi();
+    const anthropic = fakeAnthropic([
+      { stop_reason: "tool_use", content: [{ type: "tool_use", id: "t1", name, input }] },
+      { stop_reason: "end_turn", content: [{ type: "text", text: "ok" }] },
+    ]);
+    const { reply, messages } = await runAgent([{ role: "user", content: "go" }], api, anthropic, ctx);
+    return { calls, reply, messages };
+  }
+
+  it("maps add_goal's snake_case fields to the API's names", async () => {
+    const { calls } = await runOneTool("add_goal", { name: "CAD exam", kind: "gate", target_date: "2026-11-30" });
+
+    expect(calls).toContainEqual(["createGoal", JSON.stringify({ name: "CAD exam", kind: "gate", targetDate: "2026-11-30" })]);
+  });
+
+  it("passes only the fields update_goal sent, keeping null as a clear", async () => {
+    const { calls } = await runOneTool("update_goal", { id: 3, name: "Rust", weekly_target: null });
+
+    expect(calls).toContainEqual(["updateGoal", "3", JSON.stringify({ name: "Rust", weeklyTarget: null })]);
+  });
+
+  it("turns delete_goal's choice into a disposition", async () => {
+    const { calls } = await runOneTool("delete_goal", { id: 2, tasks: "reassign", reassign_to: 1 });
+
+    expect(calls).toContainEqual(["deleteGoal", "2", JSON.stringify({ kind: "reassign", targetGoalId: 1 })]);
+  });
+
+  it("refuses a reassign with no target instead of guessing", async () => {
+    const { calls, reply } = await runOneTool("delete_goal", { id: 2, tasks: "reassign" });
+
+    expect(calls.some(([c]) => c === "deleteGoal")).toBe(false);
+    expect(reply).toMatch(/delete_goal failed/);
+  });
+
+  it("clears a task's goal with set_task_goal null", async () => {
+    const { calls } = await runOneTool("set_task_goal", { task_id: 5, goal_id: null });
+
+    expect(calls).toContainEqual(["setTaskGoal", "5", "null"]);
   });
 });

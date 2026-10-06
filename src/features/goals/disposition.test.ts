@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateDisposition, type Disposition } from "./disposition";
+import { parseDisposition, validateDisposition, type Disposition } from "./disposition";
 
 describe("validateDisposition", () => {
   it("accepts unassign", () => {
@@ -20,5 +20,23 @@ describe("validateDisposition", () => {
   it("rejects reassign to the goal being deleted", () => {
     const d: Disposition = { kind: "reassign", targetGoalId: 5 };
     expect(() => validateDisposition(d, 5)).toThrow(/itself/);
+  });
+});
+
+describe("parseDisposition", () => {
+  it.each([
+    [{ kind: "unassign" }, { kind: "unassign" }],
+    [{ kind: "delete", targetGoalId: 4 }, { kind: "delete" }],
+    [{ kind: "reassign", targetGoalId: 4 }, { kind: "reassign", targetGoalId: 4 }],
+  ])("accepts %j", (raw, expected) => {
+    expect(parseDisposition(raw)).toEqual(expected);
+  });
+
+  it.each([
+    [{ kind: "reassign" }, /targetGoalId/],
+    [{ kind: "archive" }, /must be one of/],
+    [undefined, /must be one of/],
+  ])("rejects %j", (raw, message) => {
+    expect(() => parseDisposition(raw)).toThrow(message);
   });
 });
