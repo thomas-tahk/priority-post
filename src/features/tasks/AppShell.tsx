@@ -6,7 +6,7 @@ import { Constellation } from "@/features/constellation/Constellation";
 import type { ScoredTask } from "@/features/constellation/layout";
 import { AddTaskBar } from "./AddTaskBar";
 import { SortableTaskList } from "./SortableTaskList";
-import { TaskRow } from "./TaskRow";
+import { DoneRow } from "./DoneRow";
 import { Header, readStoredView, type ViewMode } from "./Header";
 import { DetailPanel } from "./DetailPanel";
 import { ExplainStream } from "@/features/explain/ExplainStream";
@@ -19,10 +19,12 @@ export function AppShell({
   scoredOpen,
   done,
   goals,
+  timezone,
 }: {
   scoredOpen: ScoredTask[];
   done: Task[];
   goals: Goal[];
+  timezone: string;
 }) {
   const [view, setView] = useState<ViewMode>("list");
   const [selected, setSelected] = useState<Task | null>(null);
@@ -82,6 +84,7 @@ export function AppShell({
               open={scoredOpen.filter((t) => t.goalId === activeGoal.id)}
               done={done.filter((t) => t.goalId === activeGoal.id)}
               goals={goals}
+              timezone={timezone}
               onSelectTask={setSelected}
               onDeleted={() => setSelectedGoalId(null)}
             />
@@ -110,7 +113,7 @@ export function AppShell({
                   {done.length > 0 && (
                     <>
                       <p className="section-label" style={{ marginTop: 28 }}>done · {done.length}</p>
-                      {done.map((t) => (<TaskRow key={t.id} task={t} />))}
+                      {done.map((t) => (<DoneRow key={t.id} task={t} timezone={timezone} onOpen={setSelected} />))}
                     </>
                   )}
                 </section>
@@ -122,7 +125,7 @@ export function AppShell({
           )}
         </div>
       </div>
-      <DetailPanel key={selected?.id ?? "none"} task={selected} goals={goals} onClose={() => setSelected(null)} />
+      <DetailPanel key={selected?.id ?? "none"} task={selected} goals={goals} timezone={timezone} onClose={() => setSelected(null)} />
       {newGoalOpen && <NewGoalForm onClose={() => setNewGoalOpen(false)} />}
     </>
   );

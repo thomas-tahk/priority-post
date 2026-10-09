@@ -14,6 +14,7 @@ import {
 import { TagPicker } from "./TagPicker";
 import { NotesEditor } from "./NotesEditor";
 import { ExplainStream } from "@/features/explain/ExplainStream";
+import { ClosedTaskBody } from "./ClosedTaskBody";
 
 const FOCUS_VALUES = ["low", "medium", "high"] as const;
 
@@ -49,10 +50,12 @@ function formatEstTime(min: number | null): string {
 export function DetailPanel({
   task,
   goals,
+  timezone,
   onClose,
 }: {
   task: Task | null;
   goals: Goal[];
+  timezone: string;
   onClose: () => void;
 }) {
   const [, startTransition] = useTransition();
@@ -93,6 +96,17 @@ export function DetailPanel({
   }, [task, onClose]);
 
   if (!task) return <aside className="panel" aria-hidden="true" />;
+
+  if (task.doneAt !== null) {
+    return (
+      <aside className="panel open closed" ref={panelRef}>
+        <button type="button" className="close" aria-label="Close panel" onClick={onClose}>
+          ×
+        </button>
+        <ClosedTaskBody task={task} goals={goals} timezone={timezone} />
+      </aside>
+    );
+  }
 
   function commitTitle() {
     const trimmed = title.trim();
