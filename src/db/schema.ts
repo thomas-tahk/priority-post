@@ -32,6 +32,9 @@ export const tasks = pgTable("tasks", {
   pinnedFields: jsonb("pinned_fields").notNull().default(sql`'[]'::jsonb`),
   goalId: integer("goal_id").references(() => goals.id, { onDelete: "set null" }),
   position: doublePrecision("position"),
+  // Last time the evening check-in asked about this task. Null = never asked.
+  // Rotates the check-in so the same tasks don't come back every night.
+  checkedAt: timestamp("checked_at", { withTimezone: true }),
 });
 
 // Phase 3: dedup log for the Discord bot's due-soon / overdue pings. Each

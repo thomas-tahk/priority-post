@@ -14,6 +14,9 @@ import { postToDiscord } from "@/features/planner/discord";
 import { appTimezone } from "@/features/planner/clock";
 import { decideTick, missedDigestDays, type TickSchedule } from "@/features/planner/tick";
 import { gates, tracks } from "@/features/goals/objectives";
+import { pickCheckIn } from "@/features/checkin/checkin";
+import { checkInRows } from "@/features/checkin/components";
+import { markAsked } from "@/features/checkin/apply";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,6 +42,7 @@ export async function POST(req: NextRequest) {
       activitySinceLastDigest(now),
     ]);
     const missed = missedDigestDays(previousDigestDay, decision.digestDay);
+    const checkIn = pickCheckIn(tasks, now, timezone);
     const posted = await postToDiscord(
       formatEveningDigest({
         digest: buildDigest(tasks, goals, now),
@@ -48,10 +52,14 @@ export async function POST(req: NextRequest) {
         },
         activity,
         missedDays: missed,
+        checkInCount: checkIn.length,
       }),
+      checkInRows(checkIn),
     );
     if (posted.ok) {
       await markDigestSent(decision.digestDay);
+      // Asked counts as checked, answered or not, so tomorrow asks about others.
+      await markAsked(checkIn.map((t) => t.id), now);
       did.push(`digest for ${decision.digestDay}`);
     } else {
       // Not marked sent, so the next tick tries again rather than skipping the day.

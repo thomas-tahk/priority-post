@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { dayKeyIn, hourIn, isWithinActiveHours, minuteIn } from "./clock";
+import { dayKeyIn, hourIn, instantAt, isWithinActiveHours, minuteIn } from "./clock";
 
 // 2026-09-07T23:30:00Z is 17:30 in Denver (MDT, UTC-6) and 16:30 in Los Angeles.
 const EVENING = new Date("2026-09-07T23:30:00Z");
@@ -41,5 +41,19 @@ describe("the window pings are allowed in", () => {
 
   it("treats equal bounds as no quiet hours rather than silence forever", () => {
     expect(isWithinActiveHours(EVENING, { startHour: 9, endHour: 9 }, "America/Denver")).toBe(true);
+  });
+});
+
+describe("instantAt", () => {
+  it("reads a Denver wall-clock time in daylight time", () => {
+    expect(instantAt("2026-10-09", 9, 0, "America/Denver").toISOString()).toBe("2026-10-09T15:00:00.000Z");
+  });
+
+  it("uses standard time after the November change", () => {
+    expect(instantAt("2026-11-02", 9, 0, "America/Denver").toISOString()).toBe("2026-11-02T16:00:00.000Z");
+  });
+
+  it("lands on the right day near midnight", () => {
+    expect(instantAt("2026-10-09", 23, 30, "America/Denver").toISOString()).toBe("2026-10-10T05:30:00.000Z");
   });
 });

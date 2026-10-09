@@ -10,7 +10,7 @@ export type PostResult = { ok: true } | { ok: false; reason: string };
 
 /** Post one message. Long content is cut at a line boundary rather than
  * rejected by Discord, because a truncated digest still tells you what to do. */
-export async function postToDiscord(content: string): Promise<PostResult> {
+export async function postToDiscord(content: string, components: unknown[] = []): Promise<PostResult> {
   const url = process.env.DISCORD_WEBHOOK_URL;
   if (!url) return { ok: false, reason: "DISCORD_WEBHOOK_URL is not configured" };
 
@@ -18,7 +18,9 @@ export async function postToDiscord(content: string): Promise<PostResult> {
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: fit(content) }),
+      // Buttons only work through a webhook the bot application created; a
+      // plain channel webhook silently drops them (see scripts/create-app-webhook.ts).
+      body: JSON.stringify({ content: fit(content), ...(components.length ? { components } : {}) }),
     });
     if (!response.ok) {
       return { ok: false, reason: `Discord returned ${response.status}` };

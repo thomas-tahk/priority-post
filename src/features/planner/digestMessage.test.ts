@@ -116,3 +116,13 @@ describe("what the assistant did", () => {
     expect(text.indexOf("Renew registration")).toBeLessThan(text.indexOf("Read your 5 goals."));
   });
 });
+
+describe("the check-in", () => {
+  it("introduces the buttons when there are tasks to ask about", () => {
+    expect(formatEveningDigest({ digest: empty, checkInCount: 3 })).toMatch(/Quick check-in/);
+  });
+
+  it("says nothing when there is nothing to ask", () => {
+    expect(formatEveningDigest({ digest: empty })).not.toMatch(/check-in/);
+  });
+});

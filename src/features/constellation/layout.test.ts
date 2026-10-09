@@ -25,6 +25,7 @@ function mkScored(overrides: Partial<ScoredTask> & { _score: number; id: number 
     pinnedFields: overrides.pinnedFields ?? [],
     goalId: null,
     position: null,
+    checkedAt: null,
   };
   return { ...base, _score: overrides._score };
 }

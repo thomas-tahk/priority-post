@@ -1,8 +1,10 @@
 // Discord interaction payloads, narrowed to the parts this endpoint reads.
 // https://discord.com/developers/docs/interactions/receiving-and-responding
 
-export const InteractionType = { Ping: 1, ApplicationCommand: 2 } as const;
-export const ResponseType = { Pong: 1, Message: 4, Deferred: 5 } as const;
+import { parseCustomId, type CheckInAction } from "@/features/checkin/checkin";
+
+export const InteractionType = { Ping: 1, ApplicationCommand: 2, MessageComponent: 3 } as const;
+export const ResponseType = { Pong: 1, Message: 4, Deferred: 5, UpdateMessage: 7 } as const;
 
 /** Only the owner may see or move the owner's tasks, so a refusal is ephemeral
  * — visible to whoever tried, not posted into the channel. */
@@ -10,7 +12,8 @@ const EPHEMERAL = 64;
 
 export type Interaction = {
   type: number;
-  data?: { name?: string; options?: { name?: string; value?: unknown }[] };
+  data?: { name?: string; options?: { name?: string; value?: unknown }[]; custom_id?: string };
+  message?: { components?: unknown[] };
   member?: { user?: { id?: string } };
   user?: { id?: string };
 };
@@ -20,7 +23,8 @@ export type Decision =
   | { kind: "reject"; reason: string }
   | { kind: "reply"; text: string; ephemeral: boolean }
   | { kind: "run"; prompt: string }
-  | { kind: "reset" };
+  | { kind: "reset" }
+  | { kind: "checkin"; action: CheckInAction; taskId: number };
 
 /** The user id, wherever this interaction came from. A command run in a server
  * carries `member.user`; the same command in a DM carries `user`. */
@@ -42,14 +46,23 @@ function optionText(interaction: Interaction): string {
 export function decideInteraction(interaction: Interaction, ownerId: string | undefined): Decision {
   if (interaction.type === InteractionType.Ping) return { kind: "pong" };
 
-  if (interaction.type !== InteractionType.ApplicationCommand) {
+  const isCommand = interaction.type === InteractionType.ApplicationCommand;
+  const isButton = interaction.type === InteractionType.MessageComponent;
+  if (!isCommand && !isButton) {
     return { kind: "reject", reason: `unsupported interaction type ${interaction.type}` };
   }
 
   if (!ownerId) return { kind: "reject", reason: "OWNER_DISCORD_ID is not configured" };
 
+  // Buttons sit in a channel others may see; the owner check applies to them too.
   if (invokerId(interaction) !== ownerId) {
     return { kind: "reply", text: "This planner only answers to its owner.", ephemeral: true };
+  }
+
+  if (isButton) {
+    const answer = parseCustomId(interaction.data?.custom_id);
+    if (!answer) return { kind: "reply", text: "That button is not one I know.", ephemeral: true };
+    return { kind: "checkin", ...answer };
   }
 
   const prompt = optionText(interaction);
@@ -82,6 +95,9 @@ export function immediateBody(decision: Decision): Record<string, unknown> | nul
       // to edit the message with the real reply.
       return { type: ResponseType.Deferred };
     case "reject":
+    case "checkin":
+      // A check-in tap is answered by the route after the write lands, so
+      // the updated buttons reflect what actually happened.
       return null;
   }
 }

@@ -112,3 +112,21 @@ describe("immediateBody", () => {
     expect(immediateBody({ kind: "reject", reason: "nope" })).toBeNull();
   });
 });
+
+describe("check-in button taps", () => {
+  function tap(customId: string, userId = OWNER) {
+    return { type: InteractionType.MessageComponent, data: { custom_id: customId }, member: { user: { id: userId } } };
+  }
+
+  it("turns the owner's tap into a check-in answer", () => {
+    expect(decideInteraction(tap("checkin:done:42"), OWNER)).toEqual({ kind: "checkin", action: "done", taskId: 42 });
+  });
+
+  it("refuses a tap from anyone else, privately", () => {
+    expect(decideInteraction(tap("checkin:drop:42", "999"), OWNER)).toMatchObject({ kind: "reply", ephemeral: true });
+  });
+
+  it("refuses a button it did not make", () => {
+    expect(decideInteraction(tap("something:else"), OWNER)).toMatchObject({ kind: "reply", ephemeral: true });
+  });
+});
