@@ -8,11 +8,14 @@ import { editDeferredReply } from "@/features/assistant/followup";
 import {
   decideInteraction,
   immediateBody,
+  ResponseType,
   type Decision,
   type Interaction,
 } from "@/features/assistant/interaction";
 import { verifySignature } from "@/features/assistant/verify";
 import { appTimezone } from "@/features/planner/clock";
+import { applyCheckIn } from "@/features/checkin/apply";
+import { answeredRows, type Row } from "@/features/checkin/components";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,6 +50,7 @@ export async function POST(req: Request) {
   }
 
   const decision = decideInteraction(interaction, process.env.OWNER_DISCORD_ID);
+  if (decision.kind === "checkin") return Response.json(await answerCheckIn(decision, interaction));
   const body = immediateBody(decision);
   if (!body) {
     return Response.json({ error: (decision as { reason: string }).reason }, { status: 400 });
@@ -111,6 +115,22 @@ async function produce(decision: Decision): Promise<string> {
   );
 
   return reply;
+}
+
+/** A check-in tap: write it, then redraw the digest with that task's row
+ *  collapsed into what happened. One DB write fits inside Discord's 3 seconds,
+ *  so this answers synchronously — the owner sees the result, not a spinner. */
+async function answerCheckIn(
+  decision: Extract<Decision, { kind: "checkin" }>,
+  interaction: Interaction,
+): Promise<Record<string, unknown>> {
+  const title = await applyCheckIn(decision, { now: new Date(), timezone: appTimezone() });
+  const rows = (interaction.message?.components ?? []) as Row[];
+  const label = title ?? "already gone from the app";
+  return {
+    type: ResponseType.UpdateMessage,
+    data: { components: answeredRows(rows, decision.taskId, decision.action, label) },
+  };
 }
 
 function required(name: string): string {

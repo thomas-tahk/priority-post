@@ -42,8 +42,10 @@ export function formatEveningDigest(input: {
   objectives?: Objectives;
   activity?: ActivityEntry[];
   missedDays?: number;
+  /** Tasks asked about with buttons under the message. */
+  checkInCount?: number;
 }): string {
-  const { digest, objectives, activity = [], missedDays = 0 } = input;
+  const { digest, objectives, activity = [], missedDays = 0, checkInCount = 0 } = input;
   const parts: string[] = ["🌆 **Evening. Here's tonight.**"];
 
   if (objectives && objectives.gates.length > 0) {
@@ -79,6 +81,9 @@ export function formatEveningDigest(input: {
   }
   if (activity.length > 0) {
     parts.push("\n__What the assistant did__\n" + activity.map(activityLine).join("\n"));
+  }
+  if (checkInCount > 0) {
+    parts.push("\n__Quick check-in__ — tap what happened. Ignoring is fine.");
   }
   return parts.join("\n");
 }

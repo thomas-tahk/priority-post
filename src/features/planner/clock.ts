@@ -63,3 +63,19 @@ export function isWithinActiveHours(
     ? hour >= startHour && hour < endHour
     : hour >= startHour || hour < endHour;
 }
+
+/** The instant at which the wall clock in `timezone` reads `dayKey` hh:mm.
+ *
+ * Guesses as if the zone were UTC, then corrects by the offset actually in
+ * force at the guess. A second pass settles the hour around a DST change. */
+export function instantAt(dayKey: string, hour: number, minute: number, timezone: string): Date {
+  const [y, m, d] = dayKey.split("-").map(Number);
+  const wanted = Date.UTC(y, m - 1, d, hour, minute);
+  let instant = wanted;
+  for (let i = 0; i < 2; i++) {
+    const p = partsIn(new Date(instant), timezone);
+    const seen = Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute));
+    instant += wanted - seen;
+  }
+  return new Date(instant);
+}

@@ -27,6 +27,7 @@ function mkTask(overrides: Partial<Task> = {}): Task {
     pinnedFields: [],
     goalId: null,
     position: null,
+    checkedAt: null,
     ...overrides,
   };
 }
