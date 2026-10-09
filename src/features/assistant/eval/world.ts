@@ -2,7 +2,8 @@
 // are comparable, and entirely in memory — nothing here touches Postgres, the
 // web app, or the network.
 import type Anthropic from "@anthropic-ai/sdk";
-import type { CompactTask, Digest, DueEvent, PlannerApi, ProgressResult } from "../api";
+import type { CompactGoal, CompactTask, Digest, DueEvent, PlannerApi, ProgressResult } from "../api";
+import { checkShape, parseGoalFields, type GoalFields } from "@/features/goals/fields";
 import type { RecordedCall } from "./types";
 
 export const TIMEZONE = "America/Denver";
@@ -11,7 +12,34 @@ export const TIMEZONE = "America/Denver";
 export const FIXED_NOW = new Date("2026-07-20T18:00:00-06:00");
 
 type Row = CompactTask & { done: boolean };
-type Goal = { id: number; name: string; idleDays: number; idle: boolean };
+type Goal = {
+  id: number;
+  name: string;
+  idleDays: number;
+  idle: boolean;
+  description: string | null;
+  color: string;
+  kind: string;
+  targetDate: string | null;
+  weeklyTarget: number | null;
+  milestone: string | null;
+};
+
+function goal(id: number, name: string, over: Partial<Goal> = {}): Goal {
+  return {
+    id,
+    name,
+    idleDays: 0,
+    idle: false,
+    description: null,
+    color: "other",
+    kind: "track",
+    targetDate: null,
+    weeklyTarget: null,
+    milestone: null,
+    ...over,
+  };
+}
 
 function row(
   id: number,
@@ -75,9 +103,9 @@ function seedTasks(): Row[] {
 
 function seedGoals(): Goal[] {
   return [
-    { id: 1, name: "Launch the newsletter", idleDays: 0, idle: false },
-    { id: 2, name: "Get to a 5k", idleDays: 0, idle: false },
-    { id: 3, name: "Learn Rust properly", idleDays: 12, idle: true },
+    goal(1, "Launch the newsletter", { color: "side_project", milestone: "first issue sent" }),
+    goal(2, "Get to a 5k", { color: "health", weeklyTarget: 3 }),
+    goal(3, "Learn Rust properly", { color: "learning", idleDays: 12, idle: true }),
   ];
 }
 
@@ -96,6 +124,15 @@ export function makeWorld(): { api: PlannerApi; tasks: Row[]; goals: Goal[] } {
 
   const open = () => tasks.filter((t) => !t.done);
   const find = (id: number) => tasks.find((t) => t.id === id);
+  const findGoal = (id: number) => {
+    const g = goals.find((x) => x.id === id);
+    if (!g) throw new Error(`goal ${id} not found — call list_goals for real ids`);
+    return g;
+  };
+  const apply = (g: Goal, f: GoalFields) => {
+    checkShape({ kind: f.kind ?? g.kind, targetDate: f.targetDate !== undefined ? f.targetDate : g.targetDate });
+    Object.assign(g, f);
+  };
 
   const api: PlannerApi = {
     async listTasks(): Promise<CompactTask[]> {
@@ -161,6 +198,48 @@ export function makeWorld(): { api: PlannerApi; tasks: Row[]; goals: Goal[] } {
           idleGoals: goals.filter((g) => g.idle).length,
         },
       };
+    },
+
+    async listGoals(): Promise<CompactGoal[]> {
+      return goals.map(({ idleDays, idle, ...g }) => ({
+        ...g,
+        openTasks: open().filter((t) => t.goalId === g.id).length,
+        daysLeft: null,
+        weekDone: g.weeklyTarget === null ? null : 0,
+      }));
+    },
+
+    async createGoal(input): Promise<{ id: number }> {
+      const f = parseGoalFields(input);
+      if (!f.name) throw new Error("name is required");
+      const g = goal(nextId++, f.name);
+      apply(g, f);
+      goals.push(g);
+      return { id: g.id };
+    },
+
+    async updateGoal(id, patch): Promise<void> {
+      const f = parseGoalFields(patch);
+      if (Object.keys(f).length === 0) throw new Error("nothing to update");
+      apply(findGoal(id), f);
+    },
+
+    async deleteGoal(id, disposition): Promise<void> {
+      findGoal(id);
+      if (disposition.kind === "reassign") findGoal(disposition.targetGoalId);
+      for (let i = tasks.length - 1; i >= 0; i--) {
+        if (tasks[i].goalId !== id) continue;
+        if (disposition.kind === "delete") tasks.splice(i, 1);
+        else tasks[i].goalId = disposition.kind === "reassign" ? disposition.targetGoalId : null;
+      }
+      goals.splice(goals.findIndex((g) => g.id === id), 1);
+    },
+
+    async setTaskGoal(taskId, goalId): Promise<void> {
+      const t = find(taskId);
+      if (!t) throw new Error(`no task with id ${taskId}`);
+      if (goalId !== null) findGoal(goalId);
+      t.goalId = goalId;
     },
   };
 

@@ -5,25 +5,34 @@ import { goals, tasks } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { validateDisposition, type Disposition } from "./disposition";
+import type { GoalFields } from "./fields";
 
-export async function createGoal(input: {
-  name: string;
-  color: string;
-  description?: string;
-}) {
+type GoalShape = Pick<GoalFields, "kind" | "targetDate" | "weeklyTarget" | "milestone">;
+
+export async function createGoal(
+  input: { name: string; color: string; description?: string } & GoalShape
+): Promise<{ id: number } | undefined> {
   const name = input.name.trim();
   if (!name) return;
-  await db.insert(goals).values({
-    name,
-    color: input.color,
-    description: input.description?.trim() || null,
-  });
+  const [created] = await db
+    .insert(goals)
+    .values({
+      name,
+      color: input.color,
+      description: input.description?.trim() || null,
+      kind: input.kind,
+      targetDate: input.targetDate,
+      weeklyTarget: input.weeklyTarget,
+      milestone: input.milestone,
+    })
+    .returning({ id: goals.id });
   revalidatePath("/");
+  return created;
 }
 
 export async function updateGoal(
   id: number,
-  patch: { name?: string; description?: string | null; color?: string }
+  patch: { name?: string; description?: string | null; color?: string } & GoalShape
 ) {
   const set: Partial<typeof goals.$inferInsert> = {};
   if (patch.name !== undefined) {
@@ -35,6 +44,10 @@ export async function updateGoal(
     set.description = patch.description?.trim() || null;
   }
   if (patch.color !== undefined) set.color = patch.color;
+  if (patch.kind !== undefined) set.kind = patch.kind;
+  if (patch.targetDate !== undefined) set.targetDate = patch.targetDate;
+  if (patch.weeklyTarget !== undefined) set.weeklyTarget = patch.weeklyTarget;
+  if (patch.milestone !== undefined) set.milestone = patch.milestone;
   if (Object.keys(set).length === 0) return;
   await db.update(goals).set(set).where(eq(goals.id, id));
   revalidatePath("/");
