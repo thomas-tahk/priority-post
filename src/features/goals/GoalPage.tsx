@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import type { Task, Goal } from "@/db/schema";
 import type { ScoredTask } from "@/features/constellation/layout";
-import { TaskRow } from "@/features/tasks/TaskRow";
 import { SortableTaskList } from "@/features/tasks/SortableTaskList";
 import { AddTaskBar } from "@/features/tasks/AddTaskBar";
 import { goalStats } from "./counts";
@@ -11,12 +10,14 @@ import { startedAgo } from "./dates";
 import { updateGoal } from "./actions";
 import { GoalSettingsMenu } from "./GoalSettingsMenu";
 import { DeleteGoalDialog } from "./DeleteGoalDialog";
+import { GoalHistory } from "./GoalHistory";
 
 export function GoalPage({
   goal,
   open,
   done,
   goals,
+  timezone,
   onSelectTask,
   onDeleted,
 }: {
@@ -24,6 +25,7 @@ export function GoalPage({
   open: ScoredTask[];
   done: Task[];
   goals: Goal[];
+  timezone: string;
   onSelectTask: (t: Task) => void;
   onDeleted: () => void;
 }) {
@@ -79,10 +81,7 @@ export function GoalPage({
       {open.length > 0 && <SortableTaskList tasks={open} onOpen={onSelectTask} />}
 
       {done.length > 0 && (
-        <>
-          <p className="section-label" style={{ marginTop: 28 }}>done · {done.length}</p>
-          {done.map((t) => (<TaskRow key={t.id} task={t} />))}
-        </>
+        <GoalHistory goal={goal} done={done} timezone={timezone} onOpen={onSelectTask} />
       )}
 
       {deleteOpen && (
