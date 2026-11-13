@@ -1,22 +1,20 @@
 import type { TrackedItem } from "./grouping";
 
-const OWNER = "thomas-tahk";
-const MAX_PAGES = 3;
+type RepoHit = { name: string; full_name: string; archived: boolean; open_issues_count: number };
 
-type SearchHit = {
+type IssueHit = {
   number: number;
   title: string;
   html_url: string;
-  repository_url: string;
   draft?: boolean;
   pull_request?: unknown;
   labels: { name: string; color: string }[];
   updated_at: string;
 };
 
-function toItem(hit: SearchHit): TrackedItem {
+function toItem(repo: string, hit: IssueHit): TrackedItem {
   return {
-    repo: hit.repository_url.split("/").pop() ?? "",
+    repo,
     number: hit.number,
     title: hit.title,
     url: hit.html_url,
@@ -27,29 +25,38 @@ function toItem(hit: SearchHit): TrackedItem {
   };
 }
 
-async function fetchPage(token: string, page: number): Promise<SearchHit[]> {
-  const q = encodeURIComponent(`is:open user:${OWNER} archived:false`);
-  const res = await fetch(
-    `https://api.github.com/search/issues?q=${q}&sort=updated&per_page=100&page=${page}`,
-    {
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" },
-      cache: "no-store",
-    },
-  );
-  if (!res.ok) throw new Error(`GitHub search failed: ${res.status}`);
-  const body = (await res.json()) as { items: SearchHit[] };
-  return body.items;
+async function getJson<T>(token: string, path: string): Promise<T> {
+  const res = await fetch(`https://api.github.com/${path}`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { message?: string };
+    throw new Error(`GitHub ${res.status} on ${path.split("?")[0]}: ${body.message ?? "no message"}`);
+  }
+  return (await res.json()) as T;
 }
 
-/** All open issues + PRs across the owner's repos, newest activity first. */
+async function listReposWithOpenItems(token: string): Promise<RepoHit[]> {
+  const repos: RepoHit[] = [];
+  for (let page = 1; ; page++) {
+    const batch = await getJson<RepoHit[]>(token, `user/repos?affiliation=owner&per_page=100&page=${page}`);
+    repos.push(...batch);
+    if (batch.length < 100) break;
+  }
+  return repos.filter((r) => !r.archived && r.open_issues_count > 0);
+}
+
+/** All open issues + PRs across the token owner's repos. Issues API includes PRs. */
 export async function listOpenItems(): Promise<TrackedItem[]> {
   const token = process.env.GITHUB_TOKEN;
   if (!token) throw new Error("GITHUB_TOKEN not configured");
-  const hits: SearchHit[] = [];
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const batch = await fetchPage(token, page);
-    hits.push(...batch);
-    if (batch.length < 100) break;
-  }
-  return hits.map(toItem);
+  const repos = await listReposWithOpenItems(token);
+  const perRepo = await Promise.all(
+    repos.map(async (r) => {
+      const hits = await getJson<IssueHit[]>(token, `repos/${r.full_name}/issues?state=open&per_page=100`);
+      return hits.map((h) => toItem(r.name, h));
+    }),
+  );
+  return perRepo.flat();
 }
