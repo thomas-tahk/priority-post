@@ -1,9 +1,12 @@
+"use client";
+
 import { isStale, NEEDS_YOU, timeAgo, type Label, type TrackedItem } from "./grouping";
+import { useSelection } from "./Selection";
 
 function LabelChip({ label }: { label: Label }) {
   return (
     <span
-      className="rounded-full px-1.5 py-px text-[11px] font-medium leading-4"
+      className="rounded-full px-2 py-px text-xs font-medium"
       style={{ backgroundColor: `#${label.color}`, color: textColorFor(label.color) }}
     >
       {label.name}
@@ -17,34 +20,48 @@ function textColorFor(hex: string): string {
   return 0.299 * r + 0.587 * g + 0.114 * b > 150 ? "#000" : "#fff";
 }
 
-function KindBadge({ item }: { item: TrackedItem }) {
-  if (!item.isPr) {
-    return <span className="rounded border border-[var(--border-strong)] px-1 text-[10px] font-semibold text-[var(--text-dim)]">ISSUE</span>;
-  }
+function PrBadge({ item }: { item: TrackedItem }) {
+  if (!item.isPr) return null;
   const tone = item.isDraft ? "bg-gray-500" : "bg-green-600";
-  return <span className={`rounded px-1 text-[10px] font-semibold text-white ${tone}`}>{item.isDraft ? "DRAFT" : "PR"}</span>;
+  return <span className={`rounded px-1.5 text-[11px] font-bold text-white ${tone}`}>{item.isDraft ? "DRAFT" : "PR"}</span>;
 }
 
-type Props = { item: TrackedItem; now: Date; showRepo?: boolean };
+/** Needs-you titles are written "👉 You: do X"; the section heading already says that. */
+function cleanTitle(title: string): string {
+  return title.replace(/^👉\s*You:\s*/u, "");
+}
 
-export function ItemRow({ item, now, showRepo = false }: Props) {
+type Props = { item: TrackedItem; now: Date; urgent?: boolean };
+
+export function ItemRow({ item, now, urgent = false }: Props) {
+  const { selected, select } = useSelection();
+  const isSelected = selected === item.url;
   const labels = item.labels.filter((l) => l.name !== NEEDS_YOU);
   const stale = isStale(item, now);
   return (
     <li>
-      <a href={item.url} className="block px-4 py-3 hover:bg-[var(--surface-2)]">
+      <a
+        href={item.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => select(item.url)}
+        className={`block border-l-4 px-4 py-3 transition-colors hover:bg-[var(--surface-2)] ${
+          isSelected ? "border-orange-500 bg-[var(--surface-2)]" : "border-transparent"
+        }`}
+      >
         <div className="flex items-start justify-between gap-3">
-          <span className="text-sm font-medium leading-snug">{item.title}</span>
-          <span className={`shrink-0 text-xs tabular-nums ${stale ? "font-semibold text-amber-600" : "text-[var(--text-faint)]"}`}>
+          <span className={urgent ? "text-[17px] font-semibold leading-snug" : "leading-snug"}>
+            {urgent ? cleanTitle(item.title) : item.title}
+          </span>
+          <span className={`shrink-0 text-sm tabular-nums ${stale ? "font-semibold text-amber-600" : "text-[var(--text-faint)]"}`}>
             {timeAgo(item.updatedAt, now)}
           </span>
         </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-dim)]">
-          <KindBadge item={item} />
+        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-[var(--text-dim)]">
+          <PrBadge item={item} />
           <span className="tabular-nums">
-            {showRepo && <span className="font-medium">{item.repo} </span>}#{item.number}
+            {urgent && <span className="font-medium">{item.repo} </span>}#{item.number}
           </span>
-          {item.labels.length === 0 && <span className="italic text-amber-600">no labels</span>}
           {labels.map((l) => (
             <LabelChip key={l.name} label={l} />
           ))}
