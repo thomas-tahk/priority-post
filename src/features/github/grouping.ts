@@ -9,6 +9,7 @@ export type TrackedItem = {
   isDraft: boolean;
   labels: Label[];
   updatedAt: string;
+  createdAt: string;
 };
 
 export type RepoGroup = { repo: string; items: TrackedItem[] };
