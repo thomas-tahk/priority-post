@@ -13,6 +13,11 @@ export default function proxy(req: NextRequest) {
   // need to: every request carries an Ed25519 signature over its own body, and
   // the handler additionally refuses anyone but the owner. A 401 here would
   // just mean Discord refuses to save the URL at all.
+  // Vercel Cron cannot send basic auth; the route checks CRON_SECRET itself.
+  if (req.nextUrl.pathname.startsWith("/api/cron")) {
+    return NextResponse.next();
+  }
+
   if (req.nextUrl.pathname === "/api/discord") {
     return NextResponse.next();
   }

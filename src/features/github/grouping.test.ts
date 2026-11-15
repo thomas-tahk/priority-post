@@ -11,6 +11,7 @@ function item(over: Partial<TrackedItem>): TrackedItem {
     isDraft: false,
     labels: [],
     updatedAt: "2026-11-13T00:00:00Z",
+    createdAt: "2026-11-13T00:00:00Z",
     ...over,
   };
 }

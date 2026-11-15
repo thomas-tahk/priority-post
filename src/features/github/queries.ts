@@ -10,6 +10,7 @@ type IssueHit = {
   pull_request?: unknown;
   labels: { name: string; color: string }[];
   updated_at: string;
+  created_at: string;
 };
 
 function toItem(repo: string, hit: IssueHit): TrackedItem {
@@ -22,6 +23,7 @@ function toItem(repo: string, hit: IssueHit): TrackedItem {
     isDraft: hit.draft === true,
     labels: hit.labels.map((l) => ({ name: l.name, color: l.color })),
     updatedAt: hit.updated_at,
+    createdAt: hit.created_at,
   };
 }
 
